@@ -194,9 +194,9 @@ disp(Tmetrics);
 
 %% ================================================================
 % 7. GRAFICAS FINALES PARA LA PRESENTACION
-% Objetivo: generar todas las graficas minimas exigidas en CLAUDE.md
-%           Seccion 6 (seguimiento, error, torque, mapa+ruta, trayectoria
-%           cartesiana del efector con obstaculos).
+% Objetivo: generar todas las graficas minimas exigidas por el enunciado
+%           del trabajo final (seguimiento, error, torque, mapa+ruta,
+%           trayectoria cartesiana del efector con obstaculos).
 % Resultado esperado: conjunto completo de figuras para el informe/PPT.
 %% ================================================================
 plot_joint_tracking(traj, res_pid, res_pd, res_ct);
