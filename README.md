@@ -62,46 +62,56 @@ G(q)      = d/dq [ Σ_i m_i · g · pc_i,z(q) ]
 Ambas implementaciones coinciden con un error del orden de `1e-10` en el
 punto de prueba de la Sección 2.3.
 
-### 2.2. Supuestos físicos
+### 2.2. Parámetros del paper y supuestos físicos
 
-El paper base no reporta masas, centros de masa ni inercias completas.
-Los valores asumidos se documentan en el encabezado del archivo:
+La Tabla 2 del paper base (pág. 8, "List of parameters of robot manipulator")
+reporta explícitamente longitudes, masas y gravedad:
+
+| Parámetro | Valor | Fuente |
+|---|---|---|
+| `L1, L2, L3` | 0.15, 0.50, 0.50 m | Tabla 2 del paper (dato reportado) |
+| `m1, m2, m3` | 0.50, 0.50, 0.50 kg | Tabla 2 del paper (dato reportado) |
+| `g` | 9.81 m/s² | Tabla 2 del paper (dato reportado) |
+
+El paper no reporta el valor numérico del centro de masa ni el tensor de
+inercia completo de cada eslabón (solo aparecen símbolos genéricos como
+`lc2`, `lc3`, `r1` dentro de las ecuaciones de Lagrange (10)-(12), sin
+valores en la Tabla 2). Estos dos parámetros sí son supuestos de
+simulación, documentados en el encabezado del archivo:
 
 | Parámetro | Valor asumido | Justificación |
 |---|---|---|
-| `m1, m2, m3` | 2.00, 1.50, 1.00 kg | Orden de magnitud típico de un manipulador de mesa |
 | `lc1, lc2, lc3` | `L_i / 2` | Eslabón uniforme → centro de masa a mitad de longitud |
 | `I1, I2, I3` | Varilla delgada (`m·L²/12` transversal, ~0 axial) | Aproximación estándar para eslabones esbeltos; el eje "axial" de cada tensor se dedujo de la geometría DH (no arbitrario, ver comentarios en el código) |
-| `g` | 9.81 m/s² | Estándar |
 
-Estos supuestos corresponden a las preguntas 1 y 2 de la Sección 6.
+Estos dos supuestos corresponden a la pregunta 1 de la Sección 6.
 
 ### 2.3. Resultados de validación numérica
 
 Punto de prueba: `q = [30°, 40°, −25°]`, `qdot = [5°, −3°, 4°]/s`.
 
-**M(q)** — simétrica, autovalores `[0.0248, 0.4829, 0.7435]` (definida positiva):
+**M(q)** — simétrica, autovalores `[0.0106, 0.2293, 0.3527]` (definida positiva):
 
 ```text
- 0.4829   0.0000   0.0000
- 0.0000   0.6849   0.1966
- 0.0000   0.1966   0.0833
+ 0.2293   0.0000   0.0000
+ 0.0000   0.3216   0.0983
+ 0.0000   0.0983   0.0417
 ```
 
 **C(q,qdot):**
 
 ```text
- 0.0129  -0.0269  -0.0040
- 0.0269   0.0037   0.0009
- 0.0040   0.0028   0.0000
+ 0.0059  -0.0125  -0.0020
+ 0.0125   0.0018   0.0005
+ 0.0020   0.0014   0.0000
 ```
 
 **G(q)** — `G1 = 0` exactamente (el giro de base no cambia energía potencial):
 
 ```text
  0.0000
- 8.9445
- 2.3689
+ 4.0026
+ 1.1845
 ```
 
 La derivación simbólica (Symbolic Math Toolbox) y la implementación
@@ -168,10 +178,11 @@ para el armado manual, documentado en
 
 | Viene del parcial (sin modificar) | Se agrega para el trabajo final |
 |---|---|
-| `L1, L2, L3` | Masas, centros de masa, tensores de inercia (supuestos) |
+| `L1, L2, L3` | `m1, m2, m3`, `g` (Tabla 2 del paper, no extraídos en el parcial) |
 | `fk_3dof`, `ik_3dof`, `jacobian_3dof` | `pc_i`, `Jv_i`, `Jw_i` |
 | Análisis de singularidades | `M(q)`, `C(q,qdot)`, `G(q)` por Jacobianos + Christoffel |
 | Control cinemático por pseudoinversa | 3 controladores dinámicos (PID no lineal, PD precomp., par calculado) |
+| — | Centros de masa y tensores de inercia (supuestos, paper no los reporta) |
 | — | Modelo Simulink (`Robot3GDL_Control_Final.slx`) |
 | — | Planeación autónoma con obstáculos (A*, pendiente — Sección 6) |
 
@@ -224,8 +235,9 @@ Criterios de aceptación por paso:
 
 ## 6. Preguntas pendientes para el docente
 
-1. El paper base no reporta masas, centros de masa ni inercias completas.
-   ¿Se aceptan como supuestos de simulación, declarados explícitamente?
+1. El paper base reporta masas y gravedad (Tabla 2), pero no reporta el
+   centro de masa ni el tensor de inercia completo de cada eslabón. ¿Se
+   aceptan como supuestos de simulación, declarados explícitamente?
 2. Los tensores de inercia se modelan como varilla delgada uniforme
    (momento axial ≈ 0, transversal `m·L²/12`). ¿Es aceptable esta
    aproximación, o se espera un modelo más detallado (p. ej. cilindro

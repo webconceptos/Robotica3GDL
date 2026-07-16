@@ -43,13 +43,14 @@ model_name = 'Robot3GDL_Control_Final';
 %% ================================================================
 % 1. PARAMETROS DEL ROBOT (identicos a v2_dinamica_jacobianos.m)
 % Objetivo: tener robot.* disponible de forma independiente en este script.
-% Fuente/justificacion: mismos supuestos fisicos documentados en
-%           robot3dof_TFinal_v2_dinamica_jacobianos.m (varilla delgada,
-%           masas asumidas, geometria del paper base).
+% Fuente/justificacion: L1,L2,L3,m1,m2,m3,g identicos a la Tabla 2 del
+%           paper base (dato reportado); centros de masa e inercias son
+%           supuestos de simulacion, documentados en
+%           robot3dof_TFinal_v2_dinamica_jacobianos.m (varilla delgada).
 % Resultado esperado: estructura "robot" identica a la de v2.
 %% ================================================================
 robot.L1 = 0.15; robot.L2 = 0.50; robot.L3 = 0.50;
-robot.m1 = 2.00; robot.m2 = 1.50; robot.m3 = 1.00;
+robot.m1 = 0.50; robot.m2 = 0.50; robot.m3 = 0.50;
 robot.lc1 = robot.L1/2; robot.lc2 = robot.L2/2; robot.lc3 = robot.L3/2;
 robot.g = 9.81;
 
@@ -140,7 +141,7 @@ if ~exist(blocks_dir, 'dir')
 end
 
 write_mlfb_planta(blocks_dir, robot);
-write_mlfb_pid_nolineal(blocks_dir);
+write_mlfb_pid_nolineal(blocks_dir, robot);
 write_mlfb_pd_precomp(blocks_dir, robot);
 write_mlfb_par_calculado(blocks_dir, robot);
 
@@ -205,7 +206,7 @@ function write_mlfb_planta(blocks_dir, robot)
     fclose(fid);
 end
 
-function write_mlfb_pid_nolineal(blocks_dir)
+function write_mlfb_pid_nolineal(blocks_dir, robot)
     fid = fopen(fullfile(blocks_dir, 'mlfb_pid_nolineal.m'), 'w');
     fprintf(fid, '%s\n', '%% BLOQUE MATLAB FUNCTION: Control PID no lineal');
     fprintf(fid, '%s\n', '% Entrada : q, qdot, qd, qd_dot, eint (todos 3x1), Kp,Kd,Ki (3x3 diag)');
@@ -214,7 +215,8 @@ function write_mlfb_pid_nolineal(blocks_dir)
     fprintf(fid, '%s\n\n', '% Simulink ANTES de este bloque, no dentro de el (ver guia).');
     fprintf(fid, 'function tau = mlfb_pid_nolineal(q, qdot, qd, qd_dot, eint, Kp, Kd, Ki)\n');
     fprintf(fid, '    %% Parametros de gravedad (identicos a robot3dof_TFinal_v2_dinamica_jacobianos.m)\n');
-    fprintf(fid, '    L2 = 0.50; lc2 = 0.25; lc3 = 0.25; m2 = 1.50; m3 = 1.00; g = 9.81;\n');
+    fprintf(fid, '    L2 = %.6g; lc2 = %.6g; lc3 = %.6g; m2 = %.6g; m3 = %.6g; g = %.6g;\n', ...
+        robot.L2, robot.lc2, robot.lc3, robot.m2, robot.m3, robot.g);
     fprintf(fid, '    e = qd - q;\n');
     fprintf(fid, '    edot = qd_dot - qdot;\n');
     fprintf(fid, '    q2 = q(2); q3 = q(3);\n');

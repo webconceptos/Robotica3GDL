@@ -36,22 +36,30 @@
 % [P1] Paper, Pag. 5, Seccion 3: manipulador industrial de tres eslabones
 %      con tres juntas revolutas.
 % [P2] Paper, Pag. 6, Seccion 3.1 y Tabla 1: parametros DH del robot.
-% [P5] Paper, Pag. 8, Tabla 2: L1=0.15 m, L2=0.50 m, L3=0.50 m.
+% [P5] Paper, Pag. 8, Tabla 2 "List of parameters of robot manipulator":
+%      L1=0.15 m, L2=0.50 m, L3=0.50 m, m1=0.50 kg, m2=0.50 kg,
+%      m3=0.50 kg, g=9.81 m/s^2. TODOS estos siete valores son datos
+%      reportados explicitamente por el paper, no supuestos.
 %
 % -------------------------------------------------------------------------
-% SUPUESTOS FISICOS (el paper base NO reporta masas, centros de masa ni
-% inercias completas; todo lo declarado abajo es un supuesto de simulacion
-% que debe confirmarse con el docente, ver preguntas pendientes al final):
+% SUPUESTOS FISICOS
 %
-% 1) Masas por eslabon (m1, m2, m3): valores asumidos, del orden de un
-%    manipulador de mesa pequeno (kg). No provienen del paper.
+% La Tabla 2 del paper (Pag. 8, [P5]) reporta longitudes, masas y gravedad
+% de los tres eslabones (L1,L2,L3,m1,m2,m3,g). Esos siete valores se toman
+% tal cual del paper, no son supuestos.
 %
-% 2) Centros de masa (lc1, lc2, lc3): se asume que cada eslabon es
+% El paper NO reporta, en cambio, la posicion exacta del centro de masa de
+% cada eslabon ni el tensor de inercia completo (solo aparecen simbolos
+% genericos como lc2, lc3, r1 dentro de las ecuaciones de Lagrange (10)-
+% (12), sin valores numericos en la Tabla 2). Por eso, lo siguiente SI son
+% supuestos de simulacion, declarados y justificados:
+%
+% 1) Centros de masa (lc1, lc2, lc3): se asume que cada eslabon es
 %    aproximadamente uniforme, por lo que su centro de masa esta a la
 %    mitad de su longitud (lc_i = L_i/2). pc1 se ubica sobre el eje de la
 %    columna base (ver deduccion geometrica en la Seccion 3).
 %
-% 3) Tensores de inercia (I1, I2, I3): cada eslabon se aproxima como una
+% 2) Tensores de inercia (I1, I2, I3): cada eslabon se aproxima como una
 %    VARILLA DELGADA UNIFORME (momento axial ~0, momentos transversales
 %    m*L^2/12), expresados en la base ortonormal del propio marco DH del
 %    eslabon (frame i), tal como exige la formula
@@ -63,11 +71,9 @@
 %    evitar singularidades numericas; fisicamente equivale a "varilla
 %    delgada ideal".
 %
-% 4) La gravedad robot.g = 9.81 m/s^2 (estandar).
-%
-% Estas asunciones deben declararse explicitamente en el informe como
-% "supuestos de simulacion", diferenciandolas de los parametros
-% geometricos L1,L2,L3 que si provienen del paper base.
+% Estos dos supuestos (centros de masa e inercia detallada) deben
+% declararse explicitamente en el informe, diferenciandolos de L1,L2,L3,
+% m1,m2,m3,g, que si provienen directamente de la Tabla 2 del paper base.
 % -------------------------------------------------------------------------
 
 clc; clear; close all;
@@ -76,9 +82,10 @@ clc; clear; close all;
 % 1. PARAMETROS GEOMETRICOS Y FISICOS DEL ROBOT
 % Objetivo: centralizar en robot.* toda constante geometrica/fisica usada
 %           por la cinematica y la dinamica.
-% Fuente/justificacion: geometria L1,L2,L3 tomada del paper base [P5].
-%           Masas, centros de masa e inercias son supuestos de simulacion
-%           documentados arriba (el paper no los reporta completos).
+% Fuente/justificacion: L1,L2,L3,m1,m2,m3,g tomados de la Tabla 2 del paper
+%           base [P5] (dato reportado, no supuesto). Centros de masa e
+%           inercias son supuestos de simulacion documentados arriba (el
+%           paper no reporta sus valores numericos).
 % Resultado esperado: estructura "robot" lista para toda la derivacion
 %           dinamica de este archivo.
 %% ================================================================
@@ -86,18 +93,19 @@ robot.L1 = 0.15;        % altura/base [m]                          [P5]
 robot.L2 = 0.50;        % longitud eslabon 2 [m]                   [P5]
 robot.L3 = 0.50;        % longitud eslabon 3 [m]                   [P5]
 
-% Supuesto para simulacion: el paper base no reporta masa/inercia completa.
-robot.m1 = 2.00;        % masa eslabon 1 (columna base) [kg]
-robot.m2 = 1.50;        % masa eslabon 2 [kg]
-robot.m3 = 1.00;        % masa eslabon 3 [kg]
+% Dato del paper (Tabla 2, Pag. 8, [P5]): "Mass of link 1/2/3" = 0.5 kg cada uno.
+robot.m1 = 0.50;        % masa eslabon 1 (columna base) [kg]       [P5]
+robot.m2 = 0.50;        % masa eslabon 2 [kg]                      [P5]
+robot.m3 = 0.50;        % masa eslabon 3 [kg]                      [P5]
 
+% Supuesto de simulacion: el paper no reporta el valor numerico de lc_i.
 robot.lc1 = robot.L1/2; % centro de masa eslabon 1 [m]
 robot.lc2 = robot.L2/2; % centro de masa eslabon 2 [m]
 robot.lc3 = robot.L3/2; % centro de masa eslabon 3 [m]
 
-robot.g  = 9.81;        % gravedad [m/s^2]
+robot.g  = 9.81;        % gravedad [m/s^2]                         [P5]
 
-% Tensores de inercia por eslabon (varilla delgada, ver supuesto 3 arriba).
+% Tensores de inercia por eslabon (varilla delgada, ver supuesto 2 arriba).
 % Expresados en el marco local i: eje 1 = axial (a lo largo del eslabon),
 % ejes 2,3 = transversales (m*L^2/12). Para el eslabon 1, el eje AXIAL
 % corresponde al eje local 2 (y1), no al eje local 1, porque la torsion
@@ -112,7 +120,7 @@ fprintf('============================================================\n');
 fprintf(' ROBOT ANTROPOMORFICO 3GDL - v2: DINAMICA POR JACOBIANOS\n');
 fprintf('============================================================\n');
 fprintf('Geometria (paper base): L1=%.2f m, L2=%.2f m, L3=%.2f m\n', robot.L1, robot.L2, robot.L3);
-fprintf('Masas asumidas: m1=%.2f, m2=%.2f, m3=%.2f kg\n', robot.m1, robot.m2, robot.m3);
+fprintf('Masas (Tabla 2 del paper): m1=%.2f, m2=%.2f, m3=%.2f kg\n', robot.m1, robot.m2, robot.m3);
 fprintf('Metodo dinamico: Jacobianos lineales/angulares + Christoffel (NO Lagrange).\n\n');
 
 %% ================================================================
