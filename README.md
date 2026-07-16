@@ -32,6 +32,14 @@ Se obtiene por el método de Jacobianos lineales y angulares de los centros
 de masa; la matriz de Coriolis se obtiene con coeficientes de Christoffel
 (`n = 3`); los tres controladores se implementan en Simulink.
 
+**Decisiones confirmadas por el docente:**
+
+- Modelo de inercia de cada eslabón: **cilindro sólido** (no varilla delgada).
+- Matriz de Coriolis: flujo `M(q) → Christoffel (código de clase) → C(q,qdot)`.
+- Comparación final de controladores: **error articular** (no cartesiano),
+  incluyendo tiempo de estabilización y velocidad de convergencia entre
+  controladores.
+
 ### 2.1. Modelo dinámico por Jacobianos
 
 Archivo: [`01_codigo_final/robot3dof_TFinal_v2_dinamica_jacobianos.m`](01_codigo_final/robot3dof_TFinal_v2_dinamica_jacobianos.m)
@@ -51,13 +59,15 @@ C(q,qdot) = coeficientes de Christoffel de M(q), n = 3
 G(q)      = d/dq [ Σ_i m_i · g · pc_i,z(q) ]
 ```
 
-`C(q,qdot)` tiene dos implementaciones equivalentes:
+`C(q,qdot)` tiene dos implementaciones equivalentes, siguiendo el flujo
+`M(q) → Christoffel → C(q,qdot)` confirmado por el docente:
 
-1. **Simbólica** (`coriolis_christoffel`, con `sym`/`diff`) — para
-   verificación y para el informe.
+1. **Simbólica** (`coriolis_christoffel`, con `sym`/`diff`, código
+   compartido en clase) — método canónico, usado para verificación y para
+   el informe.
 2. **Numérica** (diferencias centrales sobre `M(q)`, sin Symbolic Math
-   Toolbox) — para la simulación y para los bloques `MATLAB Function` de
-   Simulink, que no admiten código simbólico.
+   Toolbox) — adaptación del mismo método para la simulación y los
+   bloques `MATLAB Function` de Simulink, que no admiten código simbólico.
 
 Ambas implementaciones coinciden con un error del orden de `1e-10` en el
 punto de prueba de la Sección 2.3.
@@ -73,29 +83,33 @@ reporta explícitamente longitudes, masas y gravedad:
 | `m1, m2, m3` | 0.50, 0.50, 0.50 kg | Tabla 2 del paper (dato reportado) |
 | `g` | 9.81 m/s² | Tabla 2 del paper (dato reportado) |
 
-El paper no reporta el valor numérico del centro de masa ni el tensor de
-inercia completo de cada eslabón (solo aparecen símbolos genéricos como
-`lc2`, `lc3`, `r1` dentro de las ecuaciones de Lagrange (10)-(12), sin
-valores en la Tabla 2). Estos dos parámetros sí son supuestos de
-simulación, documentados en el encabezado del archivo:
+El paper no reporta el valor numérico del centro de masa ni el radio de
+cada eslabón (solo aparecen símbolos genéricos como `lc2`, `lc3`, `r1`
+dentro de las ecuaciones de Lagrange (10)-(12), sin valores en la Tabla
+2). Estos dos parámetros sí son supuestos de simulación, documentados en
+el encabezado del archivo:
 
 | Parámetro | Valor asumido | Justificación |
 |---|---|---|
 | `lc1, lc2, lc3` | `L_i / 2` | Eslabón uniforme → centro de masa a mitad de longitud |
-| `I1, I2, I3` | Varilla delgada (`m·L²/12` transversal, ~0 axial) | Aproximación estándar para eslabones esbeltos; el eje "axial" de cada tensor se dedujo de la geometría DH (no arbitrario, ver comentarios en el código) |
+| `r1, r2, r3` | 0.03 m | Radio de eslabón, no reportado por el paper |
 
-Estos dos supuestos corresponden a la pregunta 1 de la Sección 6.
+**Modelo de inercia — indicación explícita del docente:** los tres
+eslabones se modelan como **cilindro sólido** (no varilla delgada), con
+las fórmulas estándar `I_axial = ½·m·r²` e `I_transversal = (1/12)·m·(3r²+L²)`.
+El eje "axial" de cada tensor se dedujo de la geometría DH real del robot
+(no arbitrario, ver comentarios en el código).
 
 ### 2.3. Resultados de validación numérica
 
 Punto de prueba: `q = [30°, 40°, −25°]`, `qdot = [5°, −3°, 4°]/s`.
 
-**M(q)** — simétrica, autovalores `[0.0106, 0.2293, 0.3527]` (definida positiva):
+**M(q)** — simétrica, autovalores `[0.0107, 0.2297, 0.3530]` (definida positiva):
 
 ```text
- 0.2293   0.0000   0.0000
- 0.0000   0.3216   0.0983
- 0.0000   0.0983   0.0417
+ 0.2297   0.0000   0.0000
+ 0.0000   0.3218   0.0984
+ 0.0000   0.0984   0.0418
 ```
 
 **C(q,qdot):**
@@ -159,7 +173,8 @@ código de cada bloque `MATLAB Function`.
 flowchart TD
     subgraph Subsistema por controlador
     QD["qd, qd_dot, qd_ddot<br/>(From Workspace)"] --> CTRL["Controlador<br/>(MATLAB Function)"]
-    CTRL -->|tau| PLANT["Planta Dinámica 3GDL<br/>M(q), C(q,qdot), G(q)<br/>(MATLAB Function)"]
+    CTRL -->|tau| SAT["Saturación<br/>(±tau_max)"]
+    SAT --> PLANT["Planta Dinámica 3GDL<br/>M(q), C(q,qdot), G(q)<br/>(MATLAB Function)"]
     PLANT -->|qddot| INT1["Integrator"] -->|qdot| INT2["Integrator"] -->|q| CTRL
     INT2 --> SCOPE["Scope / To Workspace<br/>q, error, tau"]
     end
@@ -184,7 +199,7 @@ para el armado manual, documentado en
 | Control cinemático por pseudoinversa | 3 controladores dinámicos (PID no lineal, PD precomp., par calculado) |
 | — | Centros de masa y tensores de inercia (supuestos, paper no los reporta) |
 | — | Modelo Simulink (`Robot3GDL_Control_Final.slx`) |
-| — | Planeación autónoma con obstáculos (A*, pendiente — Sección 6) |
+| — | Planeación autónoma con obstáculos (A*, pendiente — Sección 5) |
 
 ## 4. Procedimiento de reproducción
 
@@ -222,8 +237,10 @@ Criterios de aceptación por paso:
   métodos independientes (simbólico y numérico). Pendiente: ejecución
   íntegra en MATLAB antes de la entrega final.
 - Modelo Simulink (`crear_modelo_simulink_robot3gdl.m`): construido según
-  la API estándar de Simulink. Pendiente: verificación de la generación
-  automática del `.slx` en Simulink; la guía manual
+  la API estándar de Simulink. Revisión de código detectó y corrigió un
+  error de cableado (puertos de ganancias `Kp/Kd/Ki` sin conectar) y
+  agregó saturación de torque. Pendiente: verificación de la generación
+  automática del `.slx` en Simulink real; la guía manual
   (`guia_armado_simulink_robot3gdl.md`) es la vía de respaldo.
 - `robot3dof_TFinal_v3_controladores.m` y
   `robot3dof_TFinal_v4_astar_obstaculos.m` usan una versión anterior y más
@@ -233,30 +250,7 @@ Criterios de aceptación por paso:
 - Planeación autónoma con obstáculos (A*): pendiente de integrar con el
   modelo dinámico actual.
 
-## 6. Preguntas pendientes para el docente
-
-1. El paper base reporta masas y gravedad (Tabla 2), pero no reporta el
-   centro de masa ni el tensor de inercia completo de cada eslabón. ¿Se
-   aceptan como supuestos de simulación, declarados explícitamente?
-2. Los tensores de inercia se modelan como varilla delgada uniforme
-   (momento axial ≈ 0, transversal `m·L²/12`). ¿Es aceptable esta
-   aproximación, o se espera un modelo más detallado (p. ej. cilindro
-   sólido)?
-3. `C(q,qdot)` tiene una implementación numérica (diferencias finitas sobre
-   `M(q)`) para los bloques `MATLAB Function` de Simulink, que no admiten
-   `sym`/`diff`. Se verificó que coincide con la versión simbólica exacta.
-   ¿Es aceptable esta variante para la parte que corre en Simulink?
-4. ¿Los bloques `MATLAB Function` de Simulink pueden llamar a funciones
-   numéricas externas, o el código debe quedar completamente en línea
-   dentro de cada bloque?
-5. ¿La comparación final debe reportar error articular, error cartesiano
-   del efector, o ambos?
-6. ¿El PID no lineal debe incluir saturación de torque y anti-windup?
-7. ¿La trayectoria con obstáculos puede planearse en MATLAB con A* en el
-   plano cartesiano y convertirse a trayectoria articular por cinemática
-   inversa antes de enviarla a Simulink?
-
-## 7. Estructura del repositorio
+## 6. Estructura del repositorio
 
 ```text
 00_base_parcial/       Archivo del trabajo parcial (cinemática base, sin modificar)

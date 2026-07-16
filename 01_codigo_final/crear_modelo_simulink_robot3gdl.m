@@ -44,20 +44,28 @@ model_name = 'Robot3GDL_Control_Final';
 % 1. PARAMETROS DEL ROBOT (identicos a v2_dinamica_jacobianos.m)
 % Objetivo: tener robot.* disponible de forma independiente en este script.
 % Fuente/justificacion: L1,L2,L3,m1,m2,m3,g identicos a la Tabla 2 del
-%           paper base (dato reportado); centros de masa e inercias son
-%           supuestos de simulacion, documentados en
-%           robot3dof_TFinal_v2_dinamica_jacobianos.m (varilla delgada).
+%           paper base (dato reportado); centros de masa y radio de
+%           cilindro son supuestos de simulacion, documentados en
+%           robot3dof_TFinal_v2_dinamica_jacobianos.m (cilindro solido,
+%           indicacion explicita del docente).
 % Resultado esperado: estructura "robot" identica a la de v2.
 %% ================================================================
 robot.L1 = 0.15; robot.L2 = 0.50; robot.L3 = 0.50;
 robot.m1 = 0.50; robot.m2 = 0.50; robot.m3 = 0.50;
 robot.lc1 = robot.L1/2; robot.lc2 = robot.L2/2; robot.lc3 = robot.L3/2;
 robot.g = 9.81;
+robot.r1 = 0.03; robot.r2 = 0.03; robot.r3 = 0.03; % [m] radio asumido de cada eslabon (cilindro solido)
 
-eps_ax = 1e-4;
-robot.I1 = diag([robot.m1*robot.L1^2/12, eps_ax, robot.m1*robot.L1^2/12]);
-robot.I2 = diag([eps_ax, robot.m2*robot.L2^2/12, robot.m2*robot.L2^2/12]);
-robot.I3 = diag([eps_ax, robot.m3*robot.L3^2/12, robot.m3*robot.L3^2/12]);
+I_axial1 = 0.5*robot.m1*robot.r1^2;
+I_trans1 = (1/12)*robot.m1*(3*robot.r1^2 + robot.L1^2);
+I_axial2 = 0.5*robot.m2*robot.r2^2;
+I_trans2 = (1/12)*robot.m2*(3*robot.r2^2 + robot.L2^2);
+I_axial3 = 0.5*robot.m3*robot.r3^2;
+I_trans3 = (1/12)*robot.m3*(3*robot.r3^2 + robot.L3^2);
+
+robot.I1 = diag([I_trans1, I_axial1, I_trans1]);
+robot.I2 = diag([I_axial2, I_trans2, I_trans2]);
+robot.I3 = diag([I_axial3, I_trans3, I_trans3]);
 
 fprintf('============================================================\n');
 fprintf(' GENERADOR DE MODELO SIMULINK - ROBOT3GDL_CONTROL_FINAL\n');
@@ -116,7 +124,7 @@ gains_pd.Kd = diag([20 22 18]);
 gains_ct.Kp = diag([120 130 100]);
 gains_ct.Kd = diag([25 28 22]);
 
-tau_max = [80; 80; 60]; %#ok<NASGU> % limite de saturacion sugerido, ver guia
+tau_max = [80; 80; 60]; %#ok<NASGU> % limite de saturacion de torque (bloque Sat_tau, PID no lineal)
 
 %% ================================================================
 % 4. FUNCIONES NUMERICAS PARA LOS BLOQUES "MATLAB FUNCTION"
@@ -356,6 +364,8 @@ function build_robot3gdl_simulink_model(model_name, output_dir, blocks_dir) %#ok
 
     add_block('simulink/User-Defined Functions/MATLAB Function', [sub '/Controlador_PID']);
     add_block('simulink/User-Defined Functions/MATLAB Function', [sub '/Planta_3GDL']);
+    add_block('simulink/Discontinuities/Saturation', [sub '/Sat_tau'], ...
+        'UpperLimit', 'tau_max', 'LowerLimit', '-tau_max'); % saturacion de torque (PID no lineal)
 
     add_block('simulink/Continuous/Integrator', [sub '/Int_qdot'], 'InitialCondition', 'qdot0_ic');
     add_block('simulink/Continuous/Integrator', [sub '/Int_q'], 'InitialCondition', 'q0_ic');
@@ -367,23 +377,36 @@ function build_robot3gdl_simulink_model(model_name, output_dir, blocks_dir) %#ok
     add_block('simulink/Sinks/To Workspace', [sub '/tau_out'], 'VariableName', 'tau_pid_out');
     add_block('simulink/Sinks/Scope', [sub '/Scope_q']);
 
+    % Ganancias Kp,Kd,Ki como bloques Constant (Controlador_PID las recibe
+    % como puertos de entrada 6,7,8, no como parametros de bloque).
+    add_block('simulink/Sources/Constant', [sub '/Const_Kp'], 'Value', 'gains_pid.Kp');
+    add_block('simulink/Sources/Constant', [sub '/Const_Kd'], 'Value', 'gains_pid.Kd');
+    add_block('simulink/Sources/Constant', [sub '/Const_Ki'], 'Value', 'gains_pid.Ki');
+
     % Codigo de los bloques MATLAB Function (ver Seccion 4 de este script).
     set_matlab_function_script(sub, 'Controlador_PID', fileread(fullfile(blocks_dir,'mlfb_pid_nolineal.m')));
     set_matlab_function_script(sub, 'Planta_3GDL', fileread(fullfile(blocks_dir,'mlfb_planta_3gdl.m')));
 
     % Conexiones principales (mejor esfuerzo; revisar en Simulink real).
     % Orden de puertos de Controlador_PID = orden de argumentos de
-    % mlfb_pid_nolineal(q, qdot, qd, qd_dot, eint, ...):
-    %   puerto1=q, puerto2=qdot, puerto3=qd, puerto4=qd_dot, puerto5=eint
+    % mlfb_pid_nolineal(q, qdot, qd, qd_dot, eint, Kp, Kd, Ki):
+    %   puerto1=q, puerto2=qdot, puerto3=qd, puerto4=qd_dot, puerto5=eint,
+    %   puerto6=Kp, puerto7=Kd, puerto8=Ki (bloques Constant creados arriba;
+    %   sin esta conexion el modelo no compila: puertos de entrada sin
+    %   fuente).
     % Orden de puertos de Planta_3GDL = mlfb_planta_3gdl(tau, q, qdot):
     %   puerto1=tau, puerto2=q, puerto3=qdot
     try
+        add_line(sub, 'Const_Kp/1', 'Controlador_PID/6', 'autorouting', 'on');
+        add_line(sub, 'Const_Kd/1', 'Controlador_PID/7', 'autorouting', 'on');
+        add_line(sub, 'Const_Ki/1', 'Controlador_PID/8', 'autorouting', 'on');
         set_param([sub '/Error'], 'Inputs', '+-'); % Error = qd - q
         add_line(sub, 'qd/1', 'Error/1', 'autorouting', 'on');
         add_line(sub, 'Int_q/1', 'Error/2', 'autorouting', 'on');
         add_line(sub, 'Error/1', 'Int_error/1', 'autorouting', 'on');
         add_line(sub, 'Int_error/1', 'Controlador_PID/5', 'autorouting', 'on'); % eint
-        add_line(sub, 'Controlador_PID/1', 'Planta_3GDL/1', 'autorouting', 'on'); % tau
+        add_line(sub, 'Controlador_PID/1', 'Sat_tau/1', 'autorouting', 'on'); % tau -> saturacion
+        add_line(sub, 'Sat_tau/1', 'Planta_3GDL/1', 'autorouting', 'on'); % tau saturado -> planta
         add_line(sub, 'Planta_3GDL/1', 'Int_qdot/1', 'autorouting', 'on'); % qddot
         add_line(sub, 'Int_qdot/1', 'Int_q/1', 'autorouting', 'on'); % qdot
         add_line(sub, 'Int_q/1', 'Planta_3GDL/2', 'autorouting', 'on'); % q -> planta
@@ -394,7 +417,7 @@ function build_robot3gdl_simulink_model(model_name, output_dir, blocks_dir) %#ok
         add_line(sub, 'qd_dot/1', 'Controlador_PID/4', 'autorouting', 'on'); % qd_dot -> controlador
         add_line(sub, 'Int_q/1', 'q_out/1', 'autorouting', 'on');
         add_line(sub, 'Int_q/1', 'Scope_q/1', 'autorouting', 'on');
-        add_line(sub, 'Controlador_PID/1', 'tau_out/1', 'autorouting', 'on');
+        add_line(sub, 'Sat_tau/1', 'tau_out/1', 'autorouting', 'on');
     catch errWire
         fprintf('  [Aviso] Cableado automatico parcial en %s (%s). Revisar/ajustar en Simulink.\n', sub, errWire.message);
     end

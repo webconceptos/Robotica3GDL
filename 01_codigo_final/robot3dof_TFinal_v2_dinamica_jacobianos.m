@@ -59,19 +59,22 @@
 %    mitad de su longitud (lc_i = L_i/2). pc1 se ubica sobre el eje de la
 %    columna base (ver deduccion geometrica en la Seccion 3).
 %
-% 2) Tensores de inercia (I1, I2, I3): cada eslabon se aproxima como una
-%    VARILLA DELGADA UNIFORME (momento axial ~0, momentos transversales
-%    m*L^2/12), expresados en la base ortonormal del propio marco DH del
-%    eslabon (frame i), tal como exige la formula
+% 2) Tensores de inercia (I1, I2, I3): cada eslabon se aproxima como un
+%    CILINDRO SOLIDO UNIFORME (indicacion explicita del docente: "todos
+%    los eslabones pueden modelarse como cilindros solidos"), con radio
+%    asumido r = 0.03 m para los tres eslabones (el paper no reporta
+%    radio de eslabon en ninguna parte). Formulas estandar de inercia de
+%    un cilindro solido de masa m, radio r y longitud L:
+%      I_axial      = (1/2)*m*r^2        (eje de simetria del cilindro)
+%      I_transversal = (1/12)*m*(3*r^2 + L^2)  (eje perpendicular, por el centro)
+%    Expresadas en la base ortonormal del propio marco DH del eslabon
+%    (frame i), tal como exige la formula
 %    M(q) = sum_i [ m_i*Jvi'*Jvi + Jwi'*Ri*Ii*Ri'*Jwi ].
 %    La asignacion de cual eje local es el "axial" NO es arbitraria: se
 %    deduce de la geometria DH real del robot (ver Seccion 3, nota sobre
-%    y1 = z0 y x_i a lo largo del eslabon i). El termino axial se deja en
-%    un valor pequeno (1e-4 kg*m^2) en vez de exactamente cero, solo para
-%    evitar singularidades numericas; fisicamente equivale a "varilla
-%    delgada ideal".
+%    y1 = z0 y x_i a lo largo del eslabon i).
 %
-% Estos dos supuestos (centros de masa e inercia detallada) deben
+% Estos dos supuestos (centros de masa y radio de cada eslabon) deben
 % declararse explicitamente en el informe, diferenciandolos de L1,L2,L3,
 % m1,m2,m3,g, que si provienen directamente de la Tabla 2 del paper base.
 % -------------------------------------------------------------------------
@@ -105,16 +108,27 @@ robot.lc3 = robot.L3/2; % centro de masa eslabon 3 [m]
 
 robot.g  = 9.81;        % gravedad [m/s^2]                         [P5]
 
-% Tensores de inercia por eslabon (varilla delgada, ver supuesto 2 arriba).
-% Expresados en el marco local i: eje 1 = axial (a lo largo del eslabon),
-% ejes 2,3 = transversales (m*L^2/12). Para el eslabon 1, el eje AXIAL
-% corresponde al eje local 2 (y1), no al eje local 1, porque la torsion
-% alpha=90 grados del DH del parcial hace que y1 quede alineado con z0
-% (el eje de la columna base). Ver deduccion en Seccion 3.
-eps_ax = 1e-4; % [kg*m^2] inercia axial residual (varilla delgada ideal)
-robot.I1 = diag([robot.m1*robot.L1^2/12, eps_ax, robot.m1*robot.L1^2/12]);
-robot.I2 = diag([eps_ax, robot.m2*robot.L2^2/12, robot.m2*robot.L2^2/12]);
-robot.I3 = diag([eps_ax, robot.m3*robot.L3^2/12, robot.m3*robot.L3^2/12]);
+% Tensores de inercia por eslabon: CILINDRO SOLIDO (indicacion del
+% docente), radio asumido r=0.03 m para los tres eslabones (supuesto de
+% simulacion; el paper no reporta radio). Formulas estandar de cilindro
+% solido: I_axial=(1/2)*m*r^2, I_transversal=(1/12)*m*(3*r^2+L^2).
+% Expresados en el marco local i: para los eslabones 2 y 3, el eje AXIAL
+% es el eje local 1 (x_i, a lo largo del eslabon). Para el eslabon 1, el
+% eje AXIAL corresponde al eje local 2 (y1), no al eje local 1, porque la
+% torsion alpha=90 grados del DH del parcial hace que y1 quede alineado
+% con z0 (el eje de la columna base). Ver deduccion en Seccion 3.
+robot.r1 = 0.03; robot.r2 = 0.03; robot.r3 = 0.03; % [m] radio asumido de cada eslabon
+
+I_axial1 = 0.5*robot.m1*robot.r1^2;
+I_trans1 = (1/12)*robot.m1*(3*robot.r1^2 + robot.L1^2);
+I_axial2 = 0.5*robot.m2*robot.r2^2;
+I_trans2 = (1/12)*robot.m2*(3*robot.r2^2 + robot.L2^2);
+I_axial3 = 0.5*robot.m3*robot.r3^2;
+I_trans3 = (1/12)*robot.m3*(3*robot.r3^2 + robot.L3^2);
+
+robot.I1 = diag([I_trans1, I_axial1, I_trans1]);
+robot.I2 = diag([I_axial2, I_trans2, I_trans2]);
+robot.I3 = diag([I_axial3, I_trans3, I_trans3]);
 
 fprintf('============================================================\n');
 fprintf(' ROBOT ANTROPOMORFICO 3GDL - v2: DINAMICA POR JACOBIANOS\n');
@@ -249,7 +263,7 @@ end
 %           pc2_z = L1 + lc2*sin(q2); pc3_z = L1 + L2*sin(q2) + lc3*sin(q2+q3).
 %           Derivando P(q) a mano respecto a q1,q2,q3 se obtiene la forma
 %           cerrada usada abajo (verificada tambien de forma simbolica con
-%           jacobian(P,q), ver Seccion 8).
+%           jacobian(P,q), ver Seccion 9).
 % Resultado esperado: G1(q) = 0 (la junta de yaw no cambia energia
 %           potencial); G2, G3 dependen de cos(q2) y cos(q2+q3).
 %% ================================================================
@@ -277,9 +291,11 @@ end
 %           Christoffel; solo cambia como se obtiene dM/dq. Se eligio esta
 %           forma numerica porque debe ejecutarse dentro de un bloque
 %           MATLAB Function de Simulink, y Simulink NO admite codigo del
-%           Symbolic Math Toolbox (sym, diff) en esos bloques. La Seccion 8
-%           de este archivo re-deriva C(q,qdot) de forma simbolica y
-%           confirma que ambos caminos coinciden numericamente.
+%           Symbolic Math Toolbox (sym, diff) en esos bloques. La Seccion 9
+%           de este archivo re-deriva C(q,qdot) de forma simbolica (metodo
+%           canonico confirmado por el docente: M(q) alimenta a
+%           Christoffel, de ahi sale C) y confirma que ambos caminos
+%           coinciden numericamente.
 % Resultado esperado: (Mdot - 2*C) antisimetrica (propiedad estandar de
 %           C obtenida por Christoffel a partir de una M valida).
 %% ================================================================
@@ -481,17 +497,27 @@ fprintf('  gravity_vector_3dof(q,robot), robot_dynamics_3dof(q,qdot,tau,robot)\n
 fprintf('Siguiente paso: crear_modelo_simulink_robot3gdl.m (Planta + 3 controladores).\n');
 
 %% ================================================================
-% PREGUNTAS PENDIENTES AL DOCENTE
+% RESPUESTAS DEL DOCENTE (preguntas ya resueltas)
 % ================================================================
-% Q1. Los tensores de inercia I1,I2,I3 se modelan como varilla delgada
-%     (momento axial ~0, transversales m*L^2/12). ¿Es aceptable esta
-%     aproximacion para fines de simulacion, o se espera un modelo de
-%     inercia mas detallado (p. ej. cilindro solido) para algun eslabon?
-% Q2. ¿El modelo Simulink puede usar bloques MATLAB Function que llamen a
+% R1. Modelo de inercia: usar CILINDRO SOLIDO para los tres eslabones (no
+%     varilla delgada). "Con la formula M(q) saldra automaticamente el
+%     modelo de cilindro solido." Implementado arriba (Seccion 1).
+% R2. Matriz de Coriolis: usar el codigo compartido en clase. Flujo
+%     confirmado: M(q) alimenta a Christoffel (funcion coriolis_christoffel,
+%     Seccion 9) y de ahi sale la matriz C. Ese es el metodo canonico; la
+%     version numerica por diferencias finitas (Seccion 6) es unicamente
+%     una adaptacion de ESE MISMO metodo para poder ejecutarse dentro de
+%     un bloque MATLAB Function de Simulink (que no admite sym/diff).
+% R3. Comparacion final: reportar ERROR ARTICULAR (no cartesiano). Ademas
+%     de error RMS/max, incluir tiempo de estabilizacion (cuanto tarda el
+%     error en aproximarse a cero) y comparar que controlador converge
+%     mas rapido. Ver Seccion 8 y compute_metrics en v3_controladores.m.
+%
+% PREGUNTAS PENDIENTES AL DOCENTE (aun sin responder)
+% Q1. ¿El modelo Simulink puede usar bloques MATLAB Function que llamen a
 %     estas mismas funciones numericas (inertia_matrix_3dof, etc.), o se
 %     exige que el codigo dentro del bloque este completamente inline?
-% Q3. ¿La comparacion final debe reportar el error articular, el error
-%     cartesiano del efector, o ambos?
+% Q2. ¿El PID no lineal debe incluir saturacion de torque y anti-windup?
 
 %% ================================================================
 % FUNCIONES LOCALES - CINEMATICA HEREDADA DEL PARCIAL (sin modificar)

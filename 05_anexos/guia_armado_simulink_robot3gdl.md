@@ -54,6 +54,8 @@ Arrastra tres bloques `Subsystem` (`Simulink > Ports & Subsystems > Subsystem`) 
 | Integrator | `Int_q` | Continuous |
 | Subtract (Sum con signos `+-`) | `Error` | Math Operations |
 | Integrator (solo PID_NoLineal) | `Int_error` | Continuous |
+| Saturation | `Sat_tau` | Discontinuities |
+| Constant ×3 (solo PID_NoLineal) | `Const_Kp`, `Const_Kd`, `Const_Ki` | Sources |
 | To Workspace | `q_out` | Sinks |
 | To Workspace | `tau_out` | Sinks |
 | Scope | `Scope_q` | Sinks |
@@ -69,6 +71,12 @@ Configura cada `Integrator`:
 - `Int_qdot` → `Initial condition`: `qdot0_ic`
 - `Int_q` → `Initial condition`: `q0_ic`
 - `Int_error` (solo PID) → `Initial condition`: `[0;0;0]`
+
+Configura `Sat_tau`:
+
+- `Upper limit`: `tau_max`
+- `Lower limit`: `-tau_max`
+- (`tau_max` queda en el workspace base al ejecutar `crear_modelo_simulink_robot3gdl`; ver Sección 0)
 
 Configura cada `To Workspace`:
 
@@ -102,7 +110,7 @@ function tau = mlfb_pid_nolineal(q, qdot, qd, qd_dot, eint, Kp, Kd, Ki)
 
 `eint` viene del bloque `Int_error` (integral de `e = qd - q`), **no** se calcula dentro de este bloque — así el integrador queda visible en el diagrama, que es justamente lo que pidió el docente ("se aprecia mejor el control articular").
 
-`Kp`, `Kd`, `Ki` deben quedar fijados como parámetros del bloque: en el editor del `MATLAB Function`, `Editor > Ports and Data Manager`, agrega `Kp`, `Kd`, `Ki` como argumentos de entrada de tipo `Parameter` con valor inicial `gains_pid.Kp`, `gains_pid.Kd`, `gains_pid.Ki` (o cablea tres bloques `Constant` con esos valores desde el workspace).
+`Kp`, `Kd`, `Ki` entran como puertos de señal normales (puertos 6, 7 y 8, en ese orden — coinciden con el orden de los argumentos de la función). Conectar tres bloques `Constant` (`Const_Kp`, `Const_Kd`, `Const_Ki`) con `Value` = `gains_pid.Kp`, `gains_pid.Kd`, `gains_pid.Ki` respectivamente a esos tres puertos. **Sin esta conexión el modelo no compila** (puertos de entrada sin fuente). Alternativa equivalente: convertir esos tres argumentos en `Parameter` vía `Editor > Ports and Data Manager` dentro del bloque, en vez de puertos de señal — pero entonces no van conectados con `add_line`/cables, así que hay que elegir un solo enfoque y ser consistente.
 
 ### Controlador — subsistema PD_Precomp
 
@@ -140,23 +148,25 @@ En palabras (para no depender del diagrama ASCII):
 
 1. `Int_q` (salida `q`) y `Int_qdot` (salida `qdot`) alimentan de vuelta **tanto** al `Controlador` **como** a `Planta_3GDL` (realimentación de estado — usa líneas ramificadas, clic derecho y arrastra desde la línea existente).
 2. `Controlador` recibe además `qd`, `qd_dot` (y `qd_ddot` si es PD_Precomp/Par_Calculado) desde los bloques `From Workspace`.
-3. Solo en `PID_NoLineal`: `Error = qd - q` (bloque `Subtract`) → `Int_error` → entrada `eint` del `Controlador`.
-4. `Controlador` produce `tau` → entra a `Planta_3GDL`.
+3. Solo en `PID_NoLineal`: `Error = qd - q` (bloque `Subtract`) → `Int_error` → entrada `eint` del `Controlador`; y `Const_Kp`/`Const_Kd`/`Const_Ki` → puertos 6/7/8 del `Controlador`.
+4. `Controlador` produce `tau` → entra a `Sat_tau` (saturación de torque) → `Planta_3GDL`.
 5. `Planta_3GDL` produce `qddot` → `Int_qdot` → `Int_q` (integradores en cascada: `qddot → Integrator → qdot → Integrator → q`).
 6. `q` (salida de `Int_q`) → `To Workspace (q_out)` y → `Scope_q`.
-7. `tau` (salida de `Controlador`) → `To Workspace (tau_out)`.
+7. `tau` saturado (salida de `Sat_tau`) → `To Workspace (tau_out)`.
 
 ## 5. Bloques de comparación (fuera de los subsistemas, en el modelo principal)
+
+**El docente confirmó: la comparación final se hace sobre error ARTICULAR (no cartesiano).**
 
 Después de simular los tres subsistemas (con el mismo `Stop time` = último valor de `qd_ws.time`, es decir `tf = 5.0 s` con la trayectoria por defecto), en el workspace base vas a tener:
 
 - `q_pid_out`, `q_pd_out`, `q_ct_out` (estructura con `.time` y `.signals.values`)
 - `tau_pid_out`, `tau_pd_out`, `tau_ct_out`
 
-No hace falta un bloque adicional en Simulink para el error RMS: se calcula en MATLAB después de simular (ver Sección 6). Si quieres verlo en vivo dentro de Simulink, agrega en cada subsistema:
+No hace falta un bloque adicional en Simulink para las métricas: se calculan en MATLAB después de simular (ver Sección 6). Si quieres verlas en vivo dentro de Simulink, agrega en cada subsistema:
 
 - `Error articular` → un bloque `Subtract` (`qd - q`) → `Scope`.
-- `Torque` → conectar la salida de `Controlador` directo a un `Scope` adicional.
+- `Torque` → conectar la salida de `Sat_tau` directo a un `Scope` adicional.
 
 ## 6. Qué graficar en MATLAB después de simular (para el informe)
 
@@ -170,21 +180,32 @@ e_ct  = qd_ws.signals.values - q_ct_out.signals.values;
 error_rms_pid = rms(vecnorm(e_pid,2,2));
 error_rms_pd  = rms(vecnorm(e_pd,2,2));
 error_rms_ct  = rms(vecnorm(e_ct,2,2));
+
+% Tiempo de estabilizacion (settling time): primer instante en que la
+% norma del error articular entra y se queda dentro de una banda (p.ej.
+% 2% del error inicial) y ya no vuelve a salir.
+tol = 0.02;
+settling_time_pid = compute_settling_time(qd_ws.time, vecnorm(e_pid,2,2), tol);
+settling_time_pd  = compute_settling_time(qd_ws.time, vecnorm(e_pd,2,2),  tol);
+settling_time_ct  = compute_settling_time(qd_ws.time, vecnorm(e_ct,2,2),  tol);
 ```
 
-Gráficas mínimas a exportar:
+`compute_settling_time` no viene incluida por defecto; es una función corta que busca el último instante en que `abs(err(t)) > tol*max(abs(err))` y devuelve `t` en ese índice + 1.
+
+Gráficas y métricas mínimas a exportar (según lo confirmado por el docente: **error articular**, no cartesiano):
 
 1. `qd` vs `q` (una figura por articulación, los tres controladores superpuestos).
-2. Error articular `e(t) = qd(t) - q(t)` (norma o por articulación).
-3. Torque `tau1, tau2, tau3` por controlador.
-4. Tabla comparativa: `Controlador | Error RMS | Error máximo | Torque RMS | Torque máximo | Comentario`.
+2. Error articular `e(t) = qd(t) - q(t)` (norma o por articulación) — comparar error de entrada (al inicio) vs error de salida (en régimen permanente) para cada controlador.
+3. Torque `tau1, tau2, tau3` por controlador (ya saturado, salida de `Sat_tau`).
+4. Tabla comparativa: `Controlador | Error RMS | Error máximo | Tiempo de estabilización | Torque RMS | Torque máximo | Comentario` — indicar explícitamente cuál controlador converge más rápido a cero.
 5. (Trayectoria con obstáculos: se agrega en `robot3dof_TFinal_v4_astar_obstaculos.m`, etapa posterior — no es parte de este modelo Simulink todavía.)
 
 ## 7. Notas de trazabilidad (para el informe)
 
 - **Viene del parcial:** geometría `L1, L2, L3`; la idea de validar `fk`/`ik` antes de construir dinámica.
 - **Se agrega para el trabajo final:** centros de masa, Jacobianos lineales/angulares, `M(q)` por el método de Jacobianos, `C(q,qdot)` por Christoffel (`n=3`), `G(q)` desde energía potencial, los tres controladores, y este modelo Simulink.
-- **Supuestos físicos:** masas, centros de masa y tensores de inercia (varilla delgada) — el paper base no los reporta; están documentados en el encabezado de `robot3dof_TFinal_v2_dinamica_jacobianos.m` y deben citarse igual en el informe.
+- **Datos del paper base (Tabla 2, pág. 8):** `L1, L2, L3, m1, m2, m3, g` — reportados explícitamente, no son supuestos.
+- **Supuestos físicos:** centros de masa (`lc_i = L_i/2`) y radio de cada eslabón (`r = 0.03 m`, para el modelo de cilindro sólido indicado por el docente) — el paper no reporta estos valores; están documentados en el encabezado de `robot3dof_TFinal_v2_dinamica_jacobianos.m` y deben citarse igual en el informe.
 
 ## 8. Si algo no conecta
 
