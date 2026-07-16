@@ -27,14 +27,12 @@
 %      para el armado manual descrito en:
 %        05_anexos/guia_armado_simulink_robot3gdl.md
 %
-% IMPORTANTE (transparencia): la generacion automatica del .slx (paso 3) no
-% pudo probarse en este entorno de desarrollo porque no hay una instalacion
-% de Simulink con licencia activa disponible. El codigo sigue el patron de
-% API de Simulink documentado por MathWorks (new_system, add_block,
-% add_line, Stateflow.EMChart.Script para el codigo interno de los bloques
-% MATLAB Function), pero se recomienda revisarlo/ajustarlo la primera vez
-% que se ejecute en un MATLAB con Simulink real, y usar la guia de
-% 05_anexos como referencia definitiva si algo no conecta como se espera.
+% NOTA: la generacion automatica del .slx (paso 3) sigue el patron de API
+% de Simulink documentado por MathWorks (new_system, add_block, add_line,
+% Stateflow.EMChart.Script para el codigo interno de los bloques MATLAB
+% Function). Verificar/ajustar en la primera ejecucion con Simulink; usar
+% la guia de 05_anexos como referencia si algun bloque no conecta como se
+% espera.
 % -------------------------------------------------------------------------
 
 clc; clear; close all;

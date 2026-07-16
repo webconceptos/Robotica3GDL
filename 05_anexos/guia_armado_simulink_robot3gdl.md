@@ -1,8 +1,8 @@
 # Guía de armado manual — Robot3GDL_Control_Final.slx
 
-Esta guía es el camino **garantizado** para construir el modelo Simulink exigido por el docente, independientemente de si `crear_modelo_simulink_robot3gdl.m` logró generar el `.slx` automáticamente en tu equipo. Sigue estos pasos en MATLAB + Simulink.
+Esta guía es el procedimiento de referencia para construir el modelo Simulink exigido por el docente, independientemente de si `crear_modelo_simulink_robot3gdl.m` logró generar el `.slx` automáticamente. Procedimiento en MATLAB + Simulink:
 
-## 0. Qué debes ejecutar primero en MATLAB
+## 0. Preparación previa en MATLAB
 
 Antes de abrir Simulink, ejecuta en la consola de MATLAB (con la carpeta `01_codigo_final/` en el path):
 
@@ -188,5 +188,5 @@ Gráficas mínimas a exportar:
 
 ## 8. Si algo no conecta
 
-- Si `add_line` falló en el script automático, es casi siempre porque los **números de puerto** de un bloque `MATLAB Function` dependen del **orden** de los argumentos de entrada/salida definidos en su firma — revisa `Editor > Ports and Data Manager` dentro del bloque y conecta por nombre de puerto, no por número, si tienes dudas.
-- Si `Planta_3GDL` da error de matriz singular, revisa que `q0_ic` no coincida exactamente con una configuración donde `M(q)` sea numéricamente inestable (no debería ocurrir con los parámetros por defecto, pero si cambias masas/longitudes a valores extremos, puede pasar).
+- Si `add_line` falla en el script automático, es casi siempre porque los **números de puerto** de un bloque `MATLAB Function` dependen del **orden** de los argumentos de entrada/salida definidos en su firma — verificar en `Editor > Ports and Data Manager` dentro del bloque y conectar por nombre de puerto en caso de duda.
+- Si `Planta_3GDL` produce un error de matriz singular, verificar que `q0_ic` no coincida con una configuración donde `M(q)` sea numéricamente inestable (no debería ocurrir con los parámetros por defecto; puede aparecer si se modifican masas/longitudes a valores extremos).

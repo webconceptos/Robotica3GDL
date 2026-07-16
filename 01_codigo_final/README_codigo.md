@@ -12,8 +12,8 @@
 - `crear_modelo_simulink_robot3gdl.m`: prepara el workspace (parámetros,
   trayectoria, ganancias) y genera los archivos de bloques `MATLAB Function`
   en `simulink_blocks/`; intenta construir `Robot3GDL_Control_Final.slx`
-  automáticamente (mejor esfuerzo, no probado en este entorno por falta de
-  licencia de Simulink). Guía de armado manual garantizada en
+  automáticamente (mejor esfuerzo, pendiente de verificar corriéndolo en
+  Simulink). Guía de armado manual garantizada en
   `05_anexos/guia_armado_simulink_robot3gdl.md`.
 - `simulink_blocks/`: código plano y autocontenido para copiar dentro de
   cada bloque `MATLAB Function` (planta + 3 controladores). Se genera al
