@@ -6,6 +6,49 @@ obstáculos. Curso: Robótica y Sistemas Autónomos.
 
 ---
 
+## Arquitectura y stack tecnológico
+
+**Stack tecnológico:**
+
+- **MATLAB + Simulink** — motor de cálculo numérico y simulación. El modelo
+  Simulink se construye por API de script (`new_system`, `add_block`,
+  `add_line`, `Simulink.BlockDiagram.arrangeSystem`), no se arma solo a
+  mano.
+- **Symbolic Math Toolbox** — opcional, usado únicamente para la
+  verificación simbólica de `M(q)`, `C(q,qdot)` y `G(q)`
+  (`run_symbolic_verification`, protegida con `try/catch`). El resto del
+  pipeline —dinámica, controladores, Simulink, A*— es numérico puro y no
+  depende de este toolbox.
+- **Sin toolboxes de robótica externos**: cinemática, dinámica por
+  Jacobianos, los tres controladores y el planeador A* están
+  implementados desde cero (sin Robotics System Toolbox ni paquetes de
+  terceros), conforme al enfoque del curso.
+- **`ode45`** (solver de paso variable nativo de MATLAB) para la
+  integración en `v3`/`v4`; Simulink usa su propio solver de paso
+  variable por defecto para los mismos controladores.
+
+**Arquitectura — flujo de datos de extremo a extremo:**
+
+```mermaid
+flowchart TD
+    A["00_base_parcial<br/>Cinematica DH: fk, ik, Jacobiano"] --> B["v2_dinamica_jacobianos<br/>M(q), C(q,qdot), G(q) via Jacobianos + Christoffel"]
+    B --> C1["v2_simulink_generador<br/>Robot3GDL_Control_Final.slx"]
+    B --> C2["v3_controladores<br/>MATLAB puro (ode45)"]
+    C1 --> D1["Simulink: 3 subsistemas<br/>PID_NoLineal / PD_Precomp / Par_Calculado"]
+    C2 --> D2["Mismos 3 controladores<br/>validacion cruzada"]
+    D1 --> E["v3_comparar_controladores<br/>Error articular, tabla comparativa"]
+    D2 --> E
+    F["v4_astar_obstaculos<br/>A* en plano XZ + IK -> qd(t)"] --> D1
+    F --> D2
+    E --> G["02_resultados<br/>Graficas + tabla comparativa"]
+```
+
+Cada bloque de este diagrama corresponde a un archivo real en
+`01_codigo_final/` (ver Sección 6 para la lista completa). El
+procedimiento paso a paso para reproducir este flujo, con criterios de
+aceptación en cada paso, está en la **Sección 4 (Procedimiento de
+reproducción)**.
+
 ## 1. Punto de partida
 
 El proyecto parte del trabajo parcial:
@@ -356,12 +399,15 @@ Criterios de aceptación por paso:
 
 **Pendiente:**
 
-- Redactar informe (`03_informe/`) y preparar presentación
-  (`04_presentacion/`) — deliberadamente no iniciados hasta confirmar lo
-  anterior.
-- Responder las preguntas pendientes al docente (Sección 6) antes de la
-  entrega final, en particular la de anti-windup del PID (ver nota sobre
-  el tiempo de estabilización en la Sección 2.6).
+- Informe (`03_informe/Informe_Trabajo_Final_Robot_3GDL.docx`): borrador
+  completo con todo el contenido técnico; falta completar a mano el
+  logotipo institucional, los nombres del grupo, el índice automático y
+  exportar a PDF antes de la entrega.
+- Preparar la presentación (`04_presentacion/`) — no iniciada, siguiente
+  paso tras cerrar el informe.
+- Responder las preguntas pendientes al docente antes de la entrega
+  final, en particular la de anti-windup del PID (ver nota sobre el
+  tiempo de estabilización en la Sección 2.6).
 
 ## 6. Estructura del repositorio
 
@@ -375,7 +421,7 @@ Criterios de aceptación por paso:
   02.3_graficas_error/               Error articular (Simulink, v3, v4)
   02.4_graficas_torque/              Torque por controlador y por articulación (v3, v4)
   02.5_graficas_trayectoria_obstaculos/  Mapa A* y trayectoria cartesiana con obstáculos (v4)
-03_informe/            Informe final (pendiente)
+03_informe/            Informe final (borrador completo, pendiente de detalles de formato)
 04_presentacion/       Presentación (pendiente)
 05_anexos/             Guía de armado de Simulink, ecuaciones, capturas
 ```
