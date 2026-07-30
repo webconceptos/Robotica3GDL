@@ -138,7 +138,7 @@ se mantuvo consistente.
 `q0 = [10°, 20°, −10°]` sin controlador, el sistema debe comportarse como un
 péndulo doble no amortiguado bajo gravedad.
 
-![Dinámica libre bajo gravedad](02_resultados/graficas_preview/dinamica_libre.png)
+![Dinámica libre bajo gravedad](02_resultados/02.1_graficas_preview/dinamica_libre.png)
 
 `q2` y `q3` oscilan sin amortiguamiento, consistente con la ausencia de
 término disipativo en el modelo (energía mecánica conservada). `q1` no
@@ -150,7 +150,7 @@ versión preliminar (v1) no reproducía.
 
 **Configuración cinemática de prueba:**
 
-![Configuración del robot](02_resultados/graficas_preview/configuracion_robot.png)
+![Configuración del robot](02_resultados/02.1_graficas_preview/configuracion_robot.png)
 
 ### 2.4. Los tres controladores
 
@@ -218,7 +218,7 @@ error respecto a `qd(0)`:
 
 *(Tabla completa: [`02_resultados/tabla_comparativa_error_articular.csv`](02_resultados/tabla_comparativa_error_articular.csv). El error máximo es idéntico en los tres porque ocurre en `t=0`, antes de que cualquier controlador actúe — depende solo de `q0_ic`, no del controlador. Torque RMS recalculado tras corregir el sesgo de muestreo no uniforme.)*
 
-![Error articular total por controlador](02_resultados/graficas_error/error_total_norma.png)
+![Error articular total por controlador](02_resultados/02.3_graficas_error/error_total_norma.png)
 
 **Par calculado converge más rápido (0.70 s) y con menor torque máximo**
 (10.03 Nm, frente a 18.66-20.42 Nm de los otros dos) que PD precompensado
@@ -227,9 +227,9 @@ porque, una vez que cada controlador converge, el torque en régimen
 permanente es principalmente compensación de gravedad — muy parecido sin
 importar el controlador; la diferencia real está en el pico durante el
 transitorio inicial y en cuánto tarda cada uno en llegar a ese régimen.
-En las gráficas por articulación ([`error_q1.png`](02_resultados/graficas_error/error_q1.png),
-[`error_q2.png`](02_resultados/graficas_error/error_q2.png),
-[`error_q3.png`](02_resultados/graficas_error/error_q3.png)) se observa
+En las gráficas por articulación ([`error_q1.png`](02_resultados/02.3_graficas_error/error_q1.png),
+[`error_q2.png`](02_resultados/02.3_graficas_error/error_q2.png),
+[`error_q3.png`](02_resultados/02.3_graficas_error/error_q3.png)) se observa
 además que el PID no lineal deja un rizado sostenido que no llega a cero,
 mientras que PD y Par calculado se estabilizan más cerca de cero. Esto es
 consistente con la teoría: Par calculado evalúa `M(q)` y `C(q,q̇)` en el
@@ -258,7 +258,7 @@ entre `start_xz=[0.35, 0.25]` y `goal_xz=[0.70, 0.65]`, evitando dos
 obstáculos circulares en el plano XZ. Los 13 waypoints son alcanzables por
 cinemática inversa (0 descartados).
 
-![Planeación autónoma A* con obstáculos](02_resultados/trayectoria_obstaculos/v4_PlaneacionAutonomaA_ConObstaculos.png)
+![Planeación autónoma A* con obstáculos](02_resultados/02.5_graficas_trayectoria_obstaculos/v4_PlaneacionAutonomaA_ConObstaculos.png)
 
 | Controlador | Error RMS [rad] | Error máx [rad] | Tiempo estabilización [s] | Torque RMS [Nm] | Torque máx [Nm] |
 |---|---|---|---|---|---|
@@ -275,8 +275,8 @@ esfuerzo de control necesario para el controlador que mejor cancela la
 dinámica no lineal del robot.
 
 Gráficas completas de `v3` y `v4` (seguimiento articular, error, torque
-por junta) en `02_resultados/graficas_seguimiento/`,
-`02_resultados/graficas_error/` y `02_resultados/graficas_torque/`,
+por junta) en `02_resultados/02.2_graficas_seguimiento/`,
+`02_resultados/02.3_graficas_error/` y `02_resultados/02.4_graficas_torque/`,
 prefijadas `v3_`/`v4_`.
 
 ## 3. Trazabilidad: parcial vs. trabajo final
@@ -368,7 +368,13 @@ Criterios de aceptación por paso:
 ```text
 00_base_parcial/       Archivo del trabajo parcial (cinemática base, sin modificar)
 01_codigo_final/       Código MATLAB del trabajo final (dinámica, Simulink, controladores, A*)
-02_resultados/         Gráficas, tablas comparativas
+02_resultados/         Gráficas y tablas comparativas, en orden secuencial de trabajo:
+  02.0_simulink_validacion/          Generación del modelo y Scopes (evidencia Simulink real)
+  02.1_graficas_preview/             Dinámica libre, configuración cinemática de prueba
+  02.2_graficas_seguimiento/         Seguimiento articular y trayectoria cartesiana (v3/v4)
+  02.3_graficas_error/               Error articular (Simulink, v3, v4)
+  02.4_graficas_torque/              Torque por controlador y por articulación (v3, v4)
+  02.5_graficas_trayectoria_obstaculos/  Mapa A* y trayectoria cartesiana con obstáculos (v4)
 03_informe/            Informe final (pendiente)
 04_presentacion/       Presentación (pendiente)
 05_anexos/             Guía de armado de Simulink, ecuaciones, capturas
