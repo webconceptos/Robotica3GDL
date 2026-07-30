@@ -234,14 +234,17 @@ Criterios de aceptación por paso:
 ## 5. Estado y pendientes
 
 - Dinámica (`v2_dinamica_jacobianos.m`): validada matemáticamente por dos
-  métodos independientes (simbólico y numérico). Pendiente: ejecución
-  íntegra en MATLAB antes de la entrega final.
-- Modelo Simulink (`crear_modelo_simulink_robot3gdl.m`): construido según
-  la API estándar de Simulink. Revisión de código detectó y corrigió un
-  error de cableado (puertos de ganancias `Kp/Kd/Ki` sin conectar) y
-  agregó saturación de torque. Pendiente: verificación de la generación
-  automática del `.slx` en Simulink real; la guía manual
-  (`guia_armado_simulink_robot3gdl.md`) es la vía de respaldo.
+  métodos independientes (simbólico y numérico) y confirmada en ejecución
+  real dentro de Simulink (ver punto siguiente).
+- Modelo Simulink (`crear_modelo_simulink_robot3gdl.m`): **validado en
+  Simulink real.** El `.slx` se genera automáticamente sin errores; el
+  subsistema `PID_NoLineal` compila (`Ctrl+D`) y simula correctamente —
+  las tres articulaciones convergen sin oscilación al punto deseado
+  (`q_goal`), confirmando que la corrección del cableado de ganancias
+  `Kp/Kd/Ki` y la planta dinámica (cilindro sólido) funcionan de extremo a
+  extremo. Pendiente: los subsistemas `PD_Precomp` y `Par_Calculado` se
+  generan como subsistemas vacíos (mismo patrón, cableado manual según
+  `guia_armado_simulink_robot3gdl.md`).
 - `robot3dof_TFinal_v3_controladores.m` y
   `robot3dof_TFinal_v4_astar_obstaculos.m` usan una versión anterior y más
   simple de la dinámica (no la de Jacobianos). Pendiente: reescribirlos
