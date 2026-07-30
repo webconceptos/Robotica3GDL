@@ -237,17 +237,14 @@ Criterios de aceptación por paso:
   métodos independientes (simbólico y numérico) y confirmada en ejecución
   real dentro de Simulink (ver punto siguiente).
 - Modelo Simulink (`crear_modelo_simulink_robot3gdl.m`): **validado en
-  Simulink real.** El `.slx` se genera automáticamente sin errores; el
-  subsistema `PID_NoLineal` compila (`Ctrl+D`) y simula correctamente —
-  las tres articulaciones convergen sin oscilación al punto deseado
-  (`q_goal`), confirmando que la corrección del cableado de ganancias
-  `Kp/Kd/Ki` y la planta dinámica (cilindro sólido) funcionan de extremo a
-  extremo. Los tres subsistemas (`PID_NoLineal`, `PD_Precomp`,
-  `Par_Calculado`) quedan completamente cableados por el script, con
-  reacomodo automático del diagrama (`Simulink.BlockDiagram.arrangeSystem`).
-  Pendiente: correr `PD_Precomp` y `Par_Calculado` en Simulink real para
-  confirmar que compilan igual que `PID_NoLineal` (mismo patrón, aún no
-  probado); la guía manual sigue siendo el respaldo si algo no conecta.
+  Simulink real, los tres subsistemas.** El `.slx` se genera
+  automáticamente sin errores, con diagrama reacomodado
+  (`Simulink.BlockDiagram.arrangeSystem`). `PID_NoLineal` compila
+  (`Ctrl+D`) y simula correctamente — las tres articulaciones convergen
+  sin oscilación al punto deseado (`q_goal`). `PD_Precomp` y
+  `Par_Calculado` también compilan sin errores. Pendiente: simular
+  (`Run`) `PD_Precomp` y `Par_Calculado` y comparar el seguimiento de
+  trayectoria de los tres controladores entre sí.
 - `robot3dof_TFinal_v3_controladores.m` y
   `robot3dof_TFinal_v4_astar_obstaculos.m` usan una versión anterior y más
   simple de la dinámica (no la de Jacobianos). Pendiente: reescribirlos
