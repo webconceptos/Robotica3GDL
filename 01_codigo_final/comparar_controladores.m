@@ -123,13 +123,13 @@ fprintf('\nControlador que converge mas rapido a cero: %s\n', nombres{idx_best})
 
 function [t, Y] = normalize_signal(sig)
     % Normaliza una senal exportada por Simulink (timeseries o "Structure
-    % With Time") a un par [t, Y] con Y de tamano Nxm.
+    % With Time") a un par [t, Y] con Y de tamano Nxm. Una senal vectorial
+    % [3x1] logueada por Simulink suele quedar como arreglo 3D [3 x 1 x N]
+    % (una "pagina" por instante de tiempo) en vez de [N x 3]; se reduce
+    % con squeeze() antes de alinear con el vector de tiempo.
     if isa(sig, 'timeseries')
         t = sig.Time;
         Y = sig.Data;
-        if size(Y,1) ~= numel(t) && size(Y,2) == numel(t)
-            Y = Y.';
-        end
     elseif isstruct(sig) && isfield(sig, 'time') && isfield(sig, 'signals')
         t = sig.time;
         Y = sig.signals.values;
@@ -137,6 +137,18 @@ function [t, Y] = normalize_signal(sig)
         error(['Formato de senal no reconocido (%s). Revisa el "Save format" ' ...
                'del bloque To Workspace (Timeseries o Structure With Time) ' ...
                'en 05_anexos/guia_armado_simulink_robot3gdl.md.'], class(sig));
+    end
+
+    if ndims(Y) == 3
+        Y = squeeze(Y); % [M x 1 x N] -> [M x N]
+    end
+    if size(Y,1) ~= numel(t) && size(Y,2) == numel(t)
+        Y = Y.'; % [M x N] -> [N x M]
+    end
+    if size(Y,1) ~= numel(t)
+        error(['normalize_signal: no se pudo alinear el tiempo (%d muestras) ' ...
+               'con los datos (%d x %d). Revisa el formato de la senal en Simulink.'], ...
+               numel(t), size(Y,1), size(Y,2));
     end
 end
 
