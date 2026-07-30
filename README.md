@@ -212,18 +212,21 @@ error respecto a `qd(0)`:
 
 | Controlador | Error RMS [rad] | Error máx [rad] | Tiempo estabilización [s] | Torque RMS [Nm] | Torque máx [Nm] |
 |---|---|---|---|---|---|
-| PID no lineal | 0.0303 | 0.1951 | 1.89 | ~~9.32~~ (ver nota) | 18.66 |
-| PD precompensado | 0.0304 | 0.1951 | 0.85 | ~~9.97~~ (ver nota) | 20.42 |
-| **Par calculado** | 0.0316 | 0.1951 | **0.70** | ~~6.52~~ (ver nota) | 10.03 |
+| PID no lineal | 0.0303 | 0.1951 | 1.89 | 4.28 | 18.66 |
+| PD precompensado | 0.0304 | 0.1951 | 0.85 | 4.30 | 20.42 |
+| **Par calculado** | 0.0316 | 0.1951 | **0.70** | **4.23** | 10.03 |
 
-*(Tabla completa: [`02_resultados/tabla_comparativa_error_articular.csv`](02_resultados/tabla_comparativa_error_articular.csv). El error máximo es idéntico en los tres porque ocurre en `t=0`, antes de que cualquier controlador actúe — depende solo de `q0_ic`, no del controlador.)*
-
-> **Nota — Torque RMS pendiente de recalcular:** se encontró que `comparar_controladores.m` calculaba `Torque_RMS_Nm` sobre la malla de tiempo *nativa* del solver de Simulink (no uniforme, con más muestras durante los transitorios rápidos) en vez de interpolar `tau` sobre la misma malla uniforme que `q`, lo que sesga el promedio (sobrepondera los tramos con paso de integración más pequeño). Ya corregido en el código (interpola `tau` igual que `q` antes de calcular RMS). Error RMS/máximo y Tiempo de estabilización **no** se ven afectados (se calculaban correctamente desde el inicio). Falta volver a correr `comparar_controladores.m` en Simulink para actualizar los valores de Torque RMS de esta tabla.
+*(Tabla completa: [`02_resultados/tabla_comparativa_error_articular.csv`](02_resultados/tabla_comparativa_error_articular.csv). El error máximo es idéntico en los tres porque ocurre en `t=0`, antes de que cualquier controlador actúe — depende solo de `q0_ic`, no del controlador. Torque RMS recalculado tras corregir el sesgo de muestreo no uniforme.)*
 
 ![Error articular total por controlador](02_resultados/graficas_error/error_total_norma.png)
 
-**Par calculado converge más rápido (0.70 s) y con menos torque** (RMS y
-máximo, ambos claramente menores) que PD precompensado y PID no lineal.
+**Par calculado converge más rápido (0.70 s) y con menor torque máximo**
+(10.03 Nm, frente a 18.66-20.42 Nm de los otros dos) que PD precompensado
+y PID no lineal. El torque RMS es similar entre los tres (~4.2-4.3 Nm)
+porque, una vez que cada controlador converge, el torque en régimen
+permanente es principalmente compensación de gravedad — muy parecido sin
+importar el controlador; la diferencia real está en el pico durante el
+transitorio inicial y en cuánto tarda cada uno en llegar a ese régimen.
 En las gráficas por articulación ([`error_q1.png`](02_resultados/graficas_error/error_q1.png),
 [`error_q2.png`](02_resultados/graficas_error/error_q2.png),
 [`error_q3.png`](02_resultados/graficas_error/error_q3.png)) se observa
@@ -231,9 +234,50 @@ además que el PID no lineal deja un rizado sostenido que no llega a cero,
 mientras que PD y Par calculado se estabilizan más cerca de cero. Esto es
 consistente con la teoría: Par calculado evalúa `M(q)` y `C(q,q̇)` en el
 estado **real** (no en el deseado como PD precompensado), por lo que
-cancela mejor la dinámica no lineal del robot con menos esfuerzo de
-control — de ahí que el docente lo señale como el controlador principal
-de la comparación final.
+cancela mejor la dinámica no lineal del robot — de ahí que el docente lo
+señale como el controlador principal de la comparación final.
+
+**Validación cruzada e independiente (Simulink vs. MATLAB puro):**
+`robot3dof_TFinal_v3_controladores.m`, con la misma trayectoria/ganancias
+pero integrado con `ode45` en MATLAB puro (sin Simulink), reproduce Error
+RMS, Error máximo, Torque RMS y Torque máximo con menos del 1% de
+diferencia frente a esta tabla, para los tres controladores. La única
+diferencia notable es el tiempo de estabilización del **PID no lineal**
+(1.89 s en Simulink vs. 0.72 s en MATLAB); PD precompensado y Par
+calculado coinciden casi exactos (0.85 s y 0.70 s en ambas plataformas).
+Es un resultado esperable, no un error: el PID no tiene anti-windup (ver
+pregunta pendiente al docente), y esa no linealidad hace que el
+transitorio sea sensible a diferencias mínimas entre dos integraciones
+numéricas "equivalentes" pero no idénticas bit a bit.
+
+### 2.7. Resultados con planeación autónoma A* (v4)
+
+[`01_codigo_final/robot3dof_TFinal_v4_astar_obstaculos.m`](01_codigo_final/robot3dof_TFinal_v4_astar_obstaculos.m)
+reemplaza la trayectoria punto-a-punto por una ruta A* de 13 waypoints
+entre `start_xz=[0.35, 0.25]` y `goal_xz=[0.70, 0.65]`, evitando dos
+obstáculos circulares en el plano XZ. Los 13 waypoints son alcanzables por
+cinemática inversa (0 descartados).
+
+![Planeación autónoma A* con obstáculos](02_resultados/trayectoria_obstaculos/v4_PlaneacionAutonomaA_ConObstaculos.png)
+
+| Controlador | Error RMS [rad] | Error máx [rad] | Tiempo estabilización [s] | Torque RMS [Nm] | Torque máx [Nm] |
+|---|---|---|---|---|---|
+| PID no lineal | 0.0237 | 0.1951 | 0.73 | 3.53 | 20.13 |
+| PD precompensado | 0.0236 | 0.1951 | 0.86 | 3.55 | 22.59 |
+| **Par calculado** | 0.0255 | 0.1953 | **0.70** | 3.46 | **4.27** |
+
+Sobre la ruta con obstáculos, Par calculado vuelve a ser el más eficiente:
+mismo tiempo de estabilización que antes (0.70 s) pero con un torque
+máximo notablemente menor (4.27 Nm frente a ~20-22 Nm de PID/PD) — la
+trayectoria A* es más suave (13 waypoints interpolados sobre `tf=8 s`, en
+vez de un solo tramo punto-a-punto de 5 s), lo que reduce aún más el
+esfuerzo de control necesario para el controlador que mejor cancela la
+dinámica no lineal del robot.
+
+Gráficas completas de `v3` y `v4` (seguimiento articular, error, torque
+por junta) en `02_resultados/graficas_seguimiento/`,
+`02_resultados/graficas_error/` y `02_resultados/graficas_torque/`,
+prefijadas `v3_`/`v4_`.
 
 ## 3. Trazabilidad: parcial vs. trabajo final
 
@@ -295,38 +339,29 @@ Criterios de aceptación por paso:
 
 ## 5. Estado y pendientes
 
+**Confirmado en MATLAB + Simulink reales (no solo validación cruzada):**
+
 - Dinámica (`v2_dinamica_jacobianos.m`): validada matemáticamente por dos
   métodos independientes (simbólico y numérico) y confirmada en ejecución
-  real dentro de Simulink (ver punto siguiente).
+  real dentro de Simulink.
 - Modelo Simulink (`crear_modelo_simulink_robot3gdl.m`): **validado al
   100% en Simulink real.** El `.slx` se genera automáticamente sin
-  errores, con diagrama reacomodado (`Simulink.BlockDiagram.arrangeSystem`)
-  y sin el warning de "shadowing" de corridas repetidas (se elimina el
-  `.slx` anterior antes de reconstruirlo). Los tres subsistemas
-  (`PID_NoLineal`, `PD_Precomp`, `Par_Calculado`) compilan (`Ctrl+D`) y
-  simulan correctamente: las tres articulaciones convergen sin
-  oscilación al mismo punto deseado (`q_goal`) en los tres controladores.
-- **Comparación de controladores: completa.** `comparar_controladores.m`
-  calculó el error articular y la tabla comparativa a partir de datos
-  reales de Simulink (Sección 2.6). Par calculado converge más rápido
-  (0.70 s) que PD precompensado y PID no lineal, confirmando por qué es
-  el controlador principal de la comparación. Se encontró y corrigió un
-  sesgo en el cálculo de `Torque_RMS_Nm` (promediaba sobre la malla de
-  tiempo no uniforme del solver en vez de una malla uniforme); `Error
-  RMS/máximo` y `Tiempo de estabilización` no se vieron afectados.
-  Pendiente: volver a correr para actualizar `Torque_RMS_Nm` en la tabla.
-- **`v3_controladores.m` y `v4_astar_obstaculos.m`: reescritos con la
-  dinámica de Jacobianos.** Ambos reutilizan `inertia_matrix_3dof`,
-  `coriolis_matrix_3dof`, `gravity_vector_3dof` de
-  `v2_dinamica_jacobianos.m`, integran con `ode45` (ver Sección 2.4), e
-  incluyen las métricas confirmadas por el docente (error articular,
-  tiempo de estabilización). Validados numéricamente fuera de MATLAB
-  (motor equivalente): `v3` reproduce los resultados de Simulink con
-  <1% de diferencia; `v4` genera una ruta A* de 13 waypoints, todos
-  alcanzables por cinemática inversa, y el efector converge a ~1 cm de la
-  meta cartesiana (la diferencia es la resolución de la grilla A*, 0.02 m,
-  no un error). Pendiente: ejecutarlos en MATLAB real para confirmación
-  final (ver Sección 4).
+  errores ni warnings, con diagrama reacomodado. Los tres subsistemas
+  (`PID_NoLineal`, `PD_Precomp`, `Par_Calculado`) compilan y simulan
+  correctamente.
+- Comparación de controladores (Sección 2.6) y planeación A* (Sección
+  2.7): **completas**, con datos reales de Simulink y de MATLAB puro
+  (`v3`, `v4`), incluyendo la validación cruzada entre ambas plataformas
+  (<1% de diferencia en Error/Torque RMS y máximo).
+
+**Pendiente:**
+
+- Redactar informe (`03_informe/`) y preparar presentación
+  (`04_presentacion/`) — deliberadamente no iniciados hasta confirmar lo
+  anterior.
+- Responder las preguntas pendientes al docente (Sección 6) antes de la
+  entrega final, en particular la de anti-windup del PID (ver nota sobre
+  el tiempo de estabilización en la Sección 2.6).
 
 ## 6. Estructura del repositorio
 
