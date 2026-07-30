@@ -494,7 +494,7 @@ fprintf('M(q), C(q,qdot) y G(q) obtenidos por Jacobianos + Christoffel (n=3), si
 fprintf('Funciones numericas listas para bloques MATLAB Function de Simulink:\n');
 fprintf('  inertia_matrix_3dof(q,robot), coriolis_matrix_3dof(q,qdot,robot),\n');
 fprintf('  gravity_vector_3dof(q,robot), robot_dynamics_3dof(q,qdot,tau,robot)\n');
-fprintf('Siguiente paso: crear_modelo_simulink_robot3gdl.m (Planta + 3 controladores).\n');
+fprintf('Siguiente paso: robot3dof_TFinal_v2_simulink_generador.m (Planta + 3 controladores).\n');
 
 %% ================================================================
 % RESPUESTAS DEL DOCENTE (preguntas ya resueltas)

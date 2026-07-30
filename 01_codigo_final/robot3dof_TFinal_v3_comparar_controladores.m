@@ -2,7 +2,7 @@
 % -------------------------------------------------------------------------
 % Curso      : Robotica y Sistemas Autonomos
 % Entregable : Graficas comparativas para el informe (error articular)
-% Archivo    : comparar_controladores.m
+% Archivo    : robot3dof_TFinal_v3_comparar_controladores.m
 %
 % Punto de partida:
 % Este script se ejecuta DESPUES de simular Robot3GDL_Control_Final.slx en
@@ -11,7 +11,7 @@
 % "To Workspace" de cada subsistema:
 %   q_pid_out, tau_pid_out, q_pd_out, tau_pd_out, q_ct_out, tau_ct_out
 % y la trayectoria de referencia qd_ws (generada por
-% crear_modelo_simulink_robot3gdl.m).
+% robot3dof_TFinal_v2_simulink_generador.m).
 %
 % Nota sobre el formato de las senales: segun la configuracion de "Data
 % Import/Export" del modelo, Simulink puede devolver estas variables

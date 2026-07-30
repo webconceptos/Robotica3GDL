@@ -176,7 +176,7 @@ validando de forma cruzada e independiente la implementación de Simulink.
 
 ### 2.5. Modelo Simulink
 
-Archivo generador: [`01_codigo_final/crear_modelo_simulink_robot3gdl.m`](01_codigo_final/crear_modelo_simulink_robot3gdl.m).
+Archivo generador: [`01_codigo_final/robot3dof_TFinal_v2_simulink_generador.m`](01_codigo_final/robot3dof_TFinal_v2_simulink_generador.m).
 Genera `Robot3GDL_Control_Final.slx` y la carpeta `simulink_blocks/` con el
 código de cada bloque `MATLAB Function`.
 
@@ -200,7 +200,7 @@ deja preparadas todas las variables y los 4 archivos de bloques necesarios
 para el armado manual, documentado en
 [`05_anexos/guia_armado_simulink_robot3gdl.md`](05_anexos/guia_armado_simulink_robot3gdl.md).
 
-Después de simular, [`01_codigo_final/comparar_controladores.m`](01_codigo_final/comparar_controladores.m)
+Después de simular, [`01_codigo_final/robot3dof_TFinal_v3_comparar_controladores.m`](01_codigo_final/robot3dof_TFinal_v3_comparar_controladores.m)
 calcula el error articular de los tres controladores y la tabla
 comparativa (error RMS/máximo, tiempo de estabilización, torque).
 
@@ -300,7 +300,7 @@ cd 01_codigo_final
 robot3dof_TFinal_v2_dinamica_jacobianos
 
 % 2) Simulink: prepara el workspace y genera el .slx
-crear_modelo_simulink_robot3gdl
+robot3dof_TFinal_v2_simulink_generador
 
 % 3) Si el .slx no se genera automáticamente, armar siguiendo:
 %    05_anexos/guia_armado_simulink_robot3gdl.md
@@ -309,7 +309,7 @@ crear_modelo_simulink_robot3gdl
 sim('Robot3GDL_Control_Final');
 
 % 5) Comparar los tres controladores (error articular, tabla, graficas)
-comparar_controladores
+robot3dof_TFinal_v3_comparar_controladores
 
 % 6) Respaldo/comparacion en MATLAB puro (sin Simulink), misma trayectoria
 %    y ganancias -- para validar de forma cruzada e independiente
@@ -332,7 +332,7 @@ Criterios de aceptación por paso:
    `tau_pd_out`, `tau_ct_out` (directo al workspace base o dentro de un
    objeto `Simulink.SimulationOutput` llamado `out`, según la
    configuración del modelo).
-4. **Paso 5:** `comparar_controladores.m` detecta automáticamente dónde
+4. **Paso 5:** `robot3dof_TFinal_v3_comparar_controladores.m` detecta automáticamente dónde
    quedaron esas señales, calcula el error articular de los tres
    controladores y genera la tabla comparativa (ver Sección 2.4 y la
    guía, Sección 6).
@@ -344,7 +344,7 @@ Criterios de aceptación por paso:
 - Dinámica (`v2_dinamica_jacobianos.m`): validada matemáticamente por dos
   métodos independientes (simbólico y numérico) y confirmada en ejecución
   real dentro de Simulink.
-- Modelo Simulink (`crear_modelo_simulink_robot3gdl.m`): **validado al
+- Modelo Simulink (`robot3dof_TFinal_v2_simulink_generador.m`): **validado al
   100% en Simulink real.** El `.slx` se genera automáticamente sin
   errores ni warnings, con diagrama reacomodado. Los tres subsistemas
   (`PID_NoLineal`, `PD_Precomp`, `Par_Calculado`) compilan y simulan

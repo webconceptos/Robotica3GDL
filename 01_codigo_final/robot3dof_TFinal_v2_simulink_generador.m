@@ -2,7 +2,7 @@
 % -------------------------------------------------------------------------
 % Curso      : Robotica y Sistemas Autonomos
 % Entregable : Generador/preparador del modelo Robot3GDL_Control_Final.slx
-% Archivo    : crear_modelo_simulink_robot3gdl.m
+% Archivo    : robot3dof_TFinal_v2_simulink_generador.m
 %
 % Punto de partida:
 % Este script depende de robot3dof_TFinal_v2_dinamica_jacobianos.m, del cual

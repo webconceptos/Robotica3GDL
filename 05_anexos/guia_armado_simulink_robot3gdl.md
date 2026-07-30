@@ -1,15 +1,15 @@
 # Guía de armado manual — Robot3GDL_Control_Final.slx
 
-Esta guía es el procedimiento de referencia para construir el modelo Simulink exigido por el docente, independientemente de si `crear_modelo_simulink_robot3gdl.m` logró generar el `.slx` automáticamente. Procedimiento en MATLAB + Simulink:
+Esta guía es el procedimiento de referencia para construir el modelo Simulink exigido por el docente, independientemente de si `robot3dof_TFinal_v2_simulink_generador.m` logró generar el `.slx` automáticamente. Procedimiento en MATLAB + Simulink:
 
-> **Estado actual:** `crear_modelo_simulink_robot3gdl.m` ya cablea automáticamente los **tres** subsistemas (`PID_NoLineal`, `PD_Precomp`, `Par_Calculado`) siguiendo exactamente el patrón descrito abajo, y reacomoda el diagrama con `Simulink.BlockDiagram.arrangeSystem`. `PID_NoLineal` fue **validado en Simulink real**: compila (`Ctrl+D`) y converge correctamente al punto deseado. `PD_Precomp` y `Par_Calculado` usan el mismo patrón pero aún no se probaron en Simulink real. Esta guía sigue siendo el respaldo si la generación automática falla o si algún subsistema necesita ajuste manual.
+> **Estado actual:** `robot3dof_TFinal_v2_simulink_generador.m` ya cablea automáticamente los **tres** subsistemas (`PID_NoLineal`, `PD_Precomp`, `Par_Calculado`) siguiendo exactamente el patrón descrito abajo, y reacomoda el diagrama con `Simulink.BlockDiagram.arrangeSystem`. `PID_NoLineal` fue **validado en Simulink real**: compila (`Ctrl+D`) y converge correctamente al punto deseado. `PD_Precomp` y `Par_Calculado` usan el mismo patrón pero aún no se probaron en Simulink real. Esta guía sigue siendo el respaldo si la generación automática falla o si algún subsistema necesita ajuste manual.
 
 ## 0. Preparación previa en MATLAB
 
 Antes de abrir Simulink, ejecuta en la consola de MATLAB (con la carpeta `01_codigo_final/` en el path):
 
 ```matlab
-crear_modelo_simulink_robot3gdl
+robot3dof_TFinal_v2_simulink_generador
 ```
 
 Esto deja en el workspace base:
@@ -78,13 +78,13 @@ Configura `Sat_tau`:
 
 - `Upper limit`: `tau_max`
 - `Lower limit`: `-tau_max`
-- (`tau_max` queda en el workspace base al ejecutar `crear_modelo_simulink_robot3gdl`; ver Sección 0)
+- (`tau_max` queda en el workspace base al ejecutar `robot3dof_TFinal_v2_simulink_generador`; ver Sección 0)
 
 Configura cada `To Workspace`:
 
 - `q_out` → `Variable name`: `q_<controlador>_out` (p. ej. `q_pid_out`, `q_pd_out`, `q_ct_out`)
 - `tau_out` → `Variable name`: `tau_<controlador>_out`
-- `Save format`: `Structure With Time` o `Timeseries` (ambos formatos funcionan; `comparar_controladores.m` detecta cuál se usó).
+- `Save format`: `Structure With Time` o `Timeseries` (ambos formatos funcionan; `robot3dof_TFinal_v3_comparar_controladores.m` detecta cuál se usó).
 
 ## 3. Código dentro de cada bloque `MATLAB Function`
 
@@ -165,7 +165,7 @@ Los tres subsistemas comparten el mismo modelo (`Robot3GDL_Control_Final`), así
 - Directamente en el workspace base: `q_pid_out`, `q_pd_out`, `q_ct_out`, `tau_pid_out`, `tau_pd_out`, `tau_ct_out`.
 - O agrupadas dentro de un objeto `Simulink.SimulationOutput` llamado `out` (comportamiento por defecto al correr desde la barra de herramientas de la app en versiones recientes de Simulink), accesibles como `out.q_pid_out`, etc.
 
-`comparar_controladores.m` (Sección 6) detecta automáticamente cuál de los dos casos aplica.
+`robot3dof_TFinal_v3_comparar_controladores.m` (Sección 6) detecta automáticamente cuál de los dos casos aplica.
 
 No hace falta un bloque adicional en Simulink para las métricas: se calculan en MATLAB después de simular (ver Sección 6). Si quieres verlas en vivo dentro de Simulink, agrega en cada subsistema:
 
@@ -177,10 +177,10 @@ No hace falta un bloque adicional en Simulink para las métricas: se calculan en
 Después de simular (`Run` en cualquiera de los tres subsistemas simula el modelo completo), ejecutar:
 
 ```matlab
-comparar_controladores
+robot3dof_TFinal_v3_comparar_controladores
 ```
 
-Este script (`01_codigo_final/comparar_controladores.m`) hace automáticamente:
+Este script (`01_codigo_final/robot3dof_TFinal_v3_comparar_controladores.m`) hace automáticamente:
 
 1. Extrae `q_*_out`/`tau_*_out` desde `out` (si existe como `Simulink.SimulationOutput`) o desde el workspace base.
 2. Alinea cada señal con la malla de tiempo de `qd_ws` (interpolación).

@@ -23,7 +23,7 @@
 % Alcance de esta version (bloque "controladores"):
 %   A) Cinematica y dinamica heredadas de v2 (Jacobianos + Christoffel).
 %   B) Trayectoria articular de referencia punto-a-punto (polinomio
-%      quintico) - la misma usada en crear_modelo_simulink_robot3gdl.m.
+%      quintico) - la misma usada en robot3dof_TFinal_v2_simulink_generador.m.
 %      La planeacion con obstaculos (A*) se agrega en v4.
 %   C) Tres controladores dinamicos:
 %      - PID no lineal (Kp*e + Kd*de + Ki*int(e) + G(q)).
@@ -89,7 +89,7 @@ fprintf('Masas (paper, Tabla 2): m1=%.2f, m2=%.2f, m3=%.2f kg\n\n', robot.m1, ro
 % Objetivo: generar qd(t), dqd(t), ddqd(t) suaves entre una configuracion
 %           inicial y una final, para probar los controladores bajo la
 %           MISMA trayectoria (comparacion justa). Es la misma trayectoria
-%           usada en crear_modelo_simulink_robot3gdl.m, para comparabilidad
+%           usada en robot3dof_TFinal_v2_simulink_generador.m, para comparabilidad
 %           directa con los resultados ya obtenidos en Simulink.
 % Fuente/justificacion: polinomio quintico con velocidad y aceleracion nulas
 %           en los extremos; eleccion estandar de generacion de trayectoria
@@ -113,7 +113,7 @@ fprintf('Duracion: %.1f s, dt = %.3f s\n\n', tf, dt);
 
 %% ================================================================
 % 3. GANANCIAS DE CONTROL
-% Objetivo: mismas ganancias que crear_modelo_simulink_robot3gdl.m
+% Objetivo: mismas ganancias que robot3dof_TFinal_v2_simulink_generador.m
 %           (gains_pid, gains_pd, gains_ct), para que este resultado sea
 %           directamente comparable con el de Simulink.
 % Resultado esperado: los tres controladores estabilizan el error hacia 0.
@@ -477,7 +477,7 @@ end
 
 function ts = settling_time(t, e_norm, tol)
     % Ultimo instante en que |e_norm| sale de la banda tol*max(e_norm) y ya
-    % no vuelve a salir (mismo criterio que comparar_controladores.m).
+    % no vuelve a salir (mismo criterio que robot3dof_TFinal_v3_comparar_controladores.m).
     band = tol * max(e_norm);
     outside = find(e_norm > band);
     if isempty(outside)
