@@ -193,6 +193,35 @@ Después de simular, [`01_codigo_final/comparar_controladores.m`](01_codigo_fina
 calcula el error articular de los tres controladores y la tabla
 comparativa (error RMS/máximo, tiempo de estabilización, torque).
 
+### 2.6. Resultados comparativos (Simulink real)
+
+Los tres controladores simulados con la misma trayectoria `qd(t)`
+(`q_start=[10°,25°,-20°] → q_goal=[-25°,55°,-45°]`), condición inicial con
+error respecto a `qd(0)`:
+
+| Controlador | Error RMS [rad] | Error máx [rad] | Tiempo estabilización [s] | Torque RMS [Nm] | Torque máx [Nm] |
+|---|---|---|---|---|---|
+| PID no lineal | 0.0303 | 0.1951 | 1.89 | 9.32 | 18.66 |
+| PD precompensado | 0.0304 | 0.1951 | 0.85 | 9.97 | 20.42 |
+| **Par calculado** | 0.0316 | 0.1951 | **0.70** | **6.52** | **10.03** |
+
+*(Tabla completa: [`02_resultados/tabla_comparativa_error_articular.csv`](02_resultados/tabla_comparativa_error_articular.csv). El error máximo es idéntico en los tres porque ocurre en `t=0`, antes de que cualquier controlador actúe — depende solo de `q0_ic`, no del controlador.)*
+
+![Error articular total por controlador](02_resultados/graficas_error/error_total_norma.png)
+
+**Par calculado converge más rápido (0.70 s) y con menos torque** (RMS y
+máximo, ambos claramente menores) que PD precompensado y PID no lineal.
+En las gráficas por articulación ([`error_q1.png`](02_resultados/graficas_error/error_q1.png),
+[`error_q2.png`](02_resultados/graficas_error/error_q2.png),
+[`error_q3.png`](02_resultados/graficas_error/error_q3.png)) se observa
+además que el PID no lineal deja un rizado sostenido que no llega a cero,
+mientras que PD y Par calculado se estabilizan más cerca de cero. Esto es
+consistente con la teoría: Par calculado evalúa `M(q)` y `C(q,q̇)` en el
+estado **real** (no en el deseado como PD precompensado), por lo que
+cancela mejor la dinámica no lineal del robot con menos esfuerzo de
+control — de ahí que el docente lo señale como el controlador principal
+de la comparación final.
+
 ## 3. Trazabilidad: parcial vs. trabajo final
 
 | Viene del parcial (sin modificar) | Se agrega para el trabajo final |
@@ -256,8 +285,11 @@ Criterios de aceptación por paso:
   (`PID_NoLineal`, `PD_Precomp`, `Par_Calculado`) compilan (`Ctrl+D`) y
   simulan correctamente: las tres articulaciones convergen sin
   oscilación al mismo punto deseado (`q_goal`) en los tres controladores.
-  `comparar_controladores.m` calcula el error articular y la tabla
-  comparativa a partir de los datos exportados.
+- **Comparación de controladores: completa.** `comparar_controladores.m`
+  calculó el error articular y la tabla comparativa a partir de datos
+  reales de Simulink (Sección 2.6). Par calculado converge más rápido
+  (0.70 s) y con menor torque que PD precompensado y PID no lineal,
+  confirmando por qué es el controlador principal de la comparación.
 - `robot3dof_TFinal_v3_controladores.m` y
   `robot3dof_TFinal_v4_astar_obstaculos.m` usan una versión anterior y más
   simple de la dinámica (no la de Jacobianos). Pendiente: reescribirlos
