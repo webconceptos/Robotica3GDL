@@ -189,6 +189,10 @@ deja preparadas todas las variables y los 4 archivos de bloques necesarios
 para el armado manual, documentado en
 [`05_anexos/guia_armado_simulink_robot3gdl.md`](05_anexos/guia_armado_simulink_robot3gdl.md).
 
+Después de simular, [`01_codigo_final/comparar_controladores.m`](01_codigo_final/comparar_controladores.m)
+calcula el error articular de los tres controladores y la tabla
+comparativa (error RMS/máximo, tiempo de estabilización, torque).
+
 ## 3. Trazabilidad: parcial vs. trabajo final
 
 | Viene del parcial (sin modificar) | Se agrega para el trabajo final |
@@ -217,6 +221,9 @@ crear_modelo_simulink_robot3gdl
 
 % 4) Simular los tres subsistemas
 sim('Robot3GDL_Control_Final');
+
+% 5) Comparar los tres controladores (error articular, tabla, graficas)
+comparar_controladores
 ```
 
 Criterios de aceptación por paso:
@@ -228,23 +235,29 @@ Criterios de aceptación por paso:
    `01_codigo_final/`. Un aviso de generación automática fallida no impide
    continuar con el Paso 3 (armado manual).
 3. **Paso 4:** exporta `q_pid_out`, `q_pd_out`, `q_ct_out`, `tau_pid_out`,
-   `tau_pd_out`, `tau_ct_out` al workspace, insumo para el error articular
-   y la tabla comparativa (guía, Sección 6).
+   `tau_pd_out`, `tau_ct_out` (directo al workspace base o dentro de un
+   objeto `Simulink.SimulationOutput` llamado `out`, según la
+   configuración del modelo).
+4. **Paso 5:** `comparar_controladores.m` detecta automáticamente dónde
+   quedaron esas señales, calcula el error articular de los tres
+   controladores y genera la tabla comparativa (ver Sección 2.4 y la
+   guía, Sección 6).
 
 ## 5. Estado y pendientes
 
 - Dinámica (`v2_dinamica_jacobianos.m`): validada matemáticamente por dos
   métodos independientes (simbólico y numérico) y confirmada en ejecución
   real dentro de Simulink (ver punto siguiente).
-- Modelo Simulink (`crear_modelo_simulink_robot3gdl.m`): **validado en
-  Simulink real, los tres subsistemas.** El `.slx` se genera
-  automáticamente sin errores, con diagrama reacomodado
-  (`Simulink.BlockDiagram.arrangeSystem`). `PID_NoLineal` compila
-  (`Ctrl+D`) y simula correctamente — las tres articulaciones convergen
-  sin oscilación al punto deseado (`q_goal`). `PD_Precomp` y
-  `Par_Calculado` también compilan sin errores. Pendiente: simular
-  (`Run`) `PD_Precomp` y `Par_Calculado` y comparar el seguimiento de
-  trayectoria de los tres controladores entre sí.
+- Modelo Simulink (`crear_modelo_simulink_robot3gdl.m`): **validado al
+  100% en Simulink real.** El `.slx` se genera automáticamente sin
+  errores, con diagrama reacomodado (`Simulink.BlockDiagram.arrangeSystem`)
+  y sin el warning de "shadowing" de corridas repetidas (se elimina el
+  `.slx` anterior antes de reconstruirlo). Los tres subsistemas
+  (`PID_NoLineal`, `PD_Precomp`, `Par_Calculado`) compilan (`Ctrl+D`) y
+  simulan correctamente: las tres articulaciones convergen sin
+  oscilación al mismo punto deseado (`q_goal`) en los tres controladores.
+  `comparar_controladores.m` calcula el error articular y la tabla
+  comparativa a partir de los datos exportados.
 - `robot3dof_TFinal_v3_controladores.m` y
   `robot3dof_TFinal_v4_astar_obstaculos.m` usan una versión anterior y más
   simple de la dinámica (no la de Jacobianos). Pendiente: reescribirlos

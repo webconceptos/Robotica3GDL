@@ -348,6 +348,20 @@ function build_robot3gdl_simulink_model(model_name, output_dir, blocks_dir) %#ok
     if bdIsLoaded(model_name)
         close_system(model_name, 0);
     end
+    % Elimina el .slx (y su .autosave) de una corrida anterior ANTES de
+    % new_system(): si el archivo ya existe en una carpeta del path de
+    % MATLAB, new_system() genera el warning "is shadowing another name
+    % in the MATLAB workspace or path" porque hay un archivo en disco con
+    % el mismo nombre que el sistema en memoria que se esta por crear.
+    % save_system() lo vuelve a escribir al final, asi que no se pierde
+    % nada; esto solo evita la ambiguedad de nombre durante la corrida.
+    slx_path = fullfile(output_dir, [model_name '.slx']);
+    if exist(slx_path, 'file')
+        delete(slx_path);
+    end
+    if exist([slx_path '.autosave'], 'file')
+        delete([slx_path '.autosave']);
+    end
     new_system(model_name);
     open_system(model_name);
 

@@ -84,7 +84,7 @@ Configura cada `To Workspace`:
 
 - `q_out` → `Variable name`: `q_<controlador>_out` (p. ej. `q_pid_out`, `q_pd_out`, `q_ct_out`)
 - `tau_out` → `Variable name`: `tau_<controlador>_out`
-- `Save format`: `Structure With Time` (para que quede alineado con `qd_ws` al graficar el error después).
+- `Save format`: `Structure With Time` o `Timeseries` (ambos formatos funcionan; `comparar_controladores.m` detecta cuál se usó).
 
 ## 3. Código dentro de cada bloque `MATLAB Function`
 
@@ -160,10 +160,12 @@ En palabras (para no depender del diagrama ASCII):
 
 **El docente confirmó: la comparación final se hace sobre error ARTICULAR (no cartesiano).**
 
-Después de simular los tres subsistemas (con el mismo `Stop time` = último valor de `qd_ws.time`, es decir `tf = 5.0 s` con la trayectoria por defecto), en el workspace base vas a tener:
+Los tres subsistemas comparten el mismo modelo (`Robot3GDL_Control_Final`), así que un solo `Run` los simula a los tres a la vez. Al terminar, según la configuración de "Data Import/Export" del modelo, las señales exportadas quedan disponibles de una de estas dos formas:
 
-- `q_pid_out`, `q_pd_out`, `q_ct_out` (estructura con `.time` y `.signals.values`)
-- `tau_pid_out`, `tau_pd_out`, `tau_ct_out`
+- Directamente en el workspace base: `q_pid_out`, `q_pd_out`, `q_ct_out`, `tau_pid_out`, `tau_pd_out`, `tau_ct_out`.
+- O agrupadas dentro de un objeto `Simulink.SimulationOutput` llamado `out` (comportamiento por defecto al correr desde la barra de herramientas de la app en versiones recientes de Simulink), accesibles como `out.q_pid_out`, etc.
+
+`comparar_controladores.m` (Sección 6) detecta automáticamente cuál de los dos casos aplica.
 
 No hace falta un bloque adicional en Simulink para las métricas: se calculan en MATLAB después de simular (ver Sección 6). Si quieres verlas en vivo dentro de Simulink, agrega en cada subsistema:
 
@@ -172,27 +174,21 @@ No hace falta un bloque adicional en Simulink para las métricas: se calculan en
 
 ## 6. Qué graficar en MATLAB después de simular (para el informe)
 
+Después de simular (`Run` en cualquiera de los tres subsistemas simula el modelo completo), ejecutar:
+
 ```matlab
-sim('Robot3GDL_Control_Final');   % o simular cada subsistema por separado
-
-e_pid = qd_ws.signals.values - q_pid_out.signals.values;
-e_pd  = qd_ws.signals.values - q_pd_out.signals.values;
-e_ct  = qd_ws.signals.values - q_ct_out.signals.values;
-
-error_rms_pid = rms(vecnorm(e_pid,2,2));
-error_rms_pd  = rms(vecnorm(e_pd,2,2));
-error_rms_ct  = rms(vecnorm(e_ct,2,2));
-
-% Tiempo de estabilizacion (settling time): primer instante en que la
-% norma del error articular entra y se queda dentro de una banda (p.ej.
-% 2% del error inicial) y ya no vuelve a salir.
-tol = 0.02;
-settling_time_pid = compute_settling_time(qd_ws.time, vecnorm(e_pid,2,2), tol);
-settling_time_pd  = compute_settling_time(qd_ws.time, vecnorm(e_pd,2,2),  tol);
-settling_time_ct  = compute_settling_time(qd_ws.time, vecnorm(e_ct,2,2),  tol);
+comparar_controladores
 ```
 
-`compute_settling_time` no viene incluida por defecto; es una función corta que busca el último instante en que `abs(err(t)) > tol*max(abs(err))` y devuelve `t` en ese índice + 1.
+Este script (`01_codigo_final/comparar_controladores.m`) hace automáticamente:
+
+1. Extrae `q_*_out`/`tau_*_out` desde `out` (si existe como `Simulink.SimulationOutput`) o desde el workspace base.
+2. Alinea cada señal con la malla de tiempo de `qd_ws` (interpolación).
+3. Calcula el error articular `e(t) = qd(t) - q(t)` para los tres controladores.
+4. Grafica el error por articulación (`q1`, `q2`, `q3`) y el error total (norma), los tres controladores superpuestos.
+5. Calcula la tabla comparativa (error RMS, error máximo, tiempo de estabilización, torque RMS, torque máximo) e indica cuál controlador converge más rápido a cero.
+
+El tiempo de estabilización se calcula como el último instante en que la norma del error sale de una banda del 2% de su valor máximo y ya no vuelve a salir.
 
 Gráficas y métricas mínimas a exportar (según lo confirmado por el docente: **error articular**, no cartesiano):
 
