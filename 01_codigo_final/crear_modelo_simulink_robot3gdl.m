@@ -430,17 +430,86 @@ function build_robot3gdl_simulink_model(model_name, output_dir, blocks_dir) %#ok
         fprintf('  [Aviso] No se pudo reacomodar %s automaticamente (%s).\n', sub, errArrange.message);
     end
 
-    % ---- Los subsistemas PD_Precomp y Par_Calculado se dejan como copias
-    % del mismo patron (planta + integradores) para armar manualmente con
-    % los bloques MATLAB Function ya generados en simulink_blocks/. Ver
-    % guia_armado_simulink_robot3gdl.md para el cableado completo de los
-    % tres controladores y los bloques de comparacion (qd vs q, error,
-    % torque, error RMS).
-    add_block('built-in/Subsystem', [model_name '/PD_Precomp']);
-    add_block('built-in/Subsystem', [model_name '/Par_Calculado']);
+    % ---- Subsistemas PD_Precomp y Par_Calculado ----
+    % Ambos comparten EXACTAMENTE el mismo patron de cableado (a diferencia
+    % de PID_NoLineal, no usan Error/Int_error/Ki porque mlfb_pd_precomp y
+    % mlfb_par_calculado calculan e=qd-q internamente); solo cambia el
+    % archivo de bloque MATLAB Function y el struct de ganancias.
+    build_pd_style_subsystem(model_name, 'PD_Precomp', blocks_dir, ...
+        'mlfb_pd_precomp.m', 'gains_pd', 'q_pd_out', 'tau_pd_out');
+    build_pd_style_subsystem(model_name, 'Par_Calculado', blocks_dir, ...
+        'mlfb_par_calculado.m', 'gains_ct', 'q_ct_out', 'tau_ct_out');
+
+    % Reacomoda el lienzo principal (los 3 bloques Subsystem del modelo).
+    try
+        Simulink.BlockDiagram.arrangeSystem(model_name);
+    catch errArrange
+        fprintf('  [Aviso] No se pudo reacomodar %s automaticamente (%s).\n', model_name, errArrange.message);
+    end
 
     save_system(model_name, fullfile(output_dir, [model_name '.slx']));
     close_system(model_name, 0);
+end
+
+function build_pd_style_subsystem(model_name, sub_name, blocks_dir, mlfb_file, gains_var, q_out_var, tau_out_var)
+    % Construye un subsistema de control con el patron PD/Par-calculado:
+    % Controlador(q,qdot,qd,qd_dot,qd_ddot,Kp,Kd) -> Sat_tau -> Planta_3GDL
+    % -> Int_qdot -> Int_q -> (realimentado a Controlador y Planta).
+    % Puertos de Controlador = orden de argumentos de mlfb_pd_precomp /
+    % mlfb_par_calculado: 1=q,2=qdot,3=qd,4=qd_dot,5=qd_ddot,6=Kp,7=Kd.
+    sub = [model_name '/' sub_name];
+    add_block('built-in/Subsystem', sub);
+    try, delete_block([sub '/In1']); catch, end %#ok<CTCH>
+    try, delete_block([sub '/Out1']); catch, end %#ok<CTCH>
+
+    add_block('simulink/Sources/From Workspace', [sub '/qd'], 'VariableName', 'qd_ws');
+    add_block('simulink/Sources/From Workspace', [sub '/qd_dot'], 'VariableName', 'qd_dot_ws');
+    add_block('simulink/Sources/From Workspace', [sub '/qd_ddot'], 'VariableName', 'qd_ddot_ws');
+
+    add_block('simulink/User-Defined Functions/MATLAB Function', [sub '/Controlador']);
+    add_block('simulink/User-Defined Functions/MATLAB Function', [sub '/Planta_3GDL']);
+    add_block('simulink/Discontinuities/Saturation', [sub '/Sat_tau'], ...
+        'UpperLimit', 'tau_max', 'LowerLimit', '-tau_max');
+
+    add_block('simulink/Continuous/Integrator', [sub '/Int_qdot'], 'InitialCondition', 'qdot0_ic');
+    add_block('simulink/Continuous/Integrator', [sub '/Int_q'], 'InitialCondition', 'q0_ic');
+
+    add_block('simulink/Sources/Constant', [sub '/Const_Kp'], 'Value', [gains_var '.Kp']);
+    add_block('simulink/Sources/Constant', [sub '/Const_Kd'], 'Value', [gains_var '.Kd']);
+
+    add_block('simulink/Sinks/To Workspace', [sub '/q_out'], 'VariableName', q_out_var);
+    add_block('simulink/Sinks/To Workspace', [sub '/tau_out'], 'VariableName', tau_out_var);
+    add_block('simulink/Sinks/Scope', [sub '/Scope_q']);
+
+    set_matlab_function_script(sub, 'Controlador', fileread(fullfile(blocks_dir, mlfb_file)));
+    set_matlab_function_script(sub, 'Planta_3GDL', fileread(fullfile(blocks_dir, 'mlfb_planta_3gdl.m')));
+
+    try
+        add_line(sub, 'Const_Kp/1', 'Controlador/6', 'autorouting', 'on');
+        add_line(sub, 'Const_Kd/1', 'Controlador/7', 'autorouting', 'on');
+        add_line(sub, 'Int_q/1', 'Controlador/1', 'autorouting', 'on'); % q
+        add_line(sub, 'Int_qdot/1', 'Controlador/2', 'autorouting', 'on'); % qdot
+        add_line(sub, 'qd/1', 'Controlador/3', 'autorouting', 'on'); % qd
+        add_line(sub, 'qd_dot/1', 'Controlador/4', 'autorouting', 'on'); % qd_dot
+        add_line(sub, 'qd_ddot/1', 'Controlador/5', 'autorouting', 'on'); % qd_ddot
+        add_line(sub, 'Controlador/1', 'Sat_tau/1', 'autorouting', 'on'); % tau -> saturacion
+        add_line(sub, 'Sat_tau/1', 'Planta_3GDL/1', 'autorouting', 'on'); % tau saturado -> planta
+        add_line(sub, 'Planta_3GDL/1', 'Int_qdot/1', 'autorouting', 'on'); % qddot
+        add_line(sub, 'Int_qdot/1', 'Int_q/1', 'autorouting', 'on'); % qdot
+        add_line(sub, 'Int_q/1', 'Planta_3GDL/2', 'autorouting', 'on'); % q -> planta
+        add_line(sub, 'Int_qdot/1', 'Planta_3GDL/3', 'autorouting', 'on'); % qdot -> planta
+        add_line(sub, 'Int_q/1', 'q_out/1', 'autorouting', 'on');
+        add_line(sub, 'Int_q/1', 'Scope_q/1', 'autorouting', 'on');
+        add_line(sub, 'Sat_tau/1', 'tau_out/1', 'autorouting', 'on');
+    catch errWire
+        fprintf('  [Aviso] Cableado automatico parcial en %s (%s). Revisar/ajustar en Simulink.\n', sub, errWire.message);
+    end
+
+    try
+        Simulink.BlockDiagram.arrangeSystem(sub);
+    catch errArrange
+        fprintf('  [Aviso] No se pudo reacomodar %s automaticamente (%s).\n', sub, errArrange.message);
+    end
 end
 
 function set_matlab_function_script(sub, block_name, script_text)

@@ -2,6 +2,8 @@
 
 Esta guía es el procedimiento de referencia para construir el modelo Simulink exigido por el docente, independientemente de si `crear_modelo_simulink_robot3gdl.m` logró generar el `.slx` automáticamente. Procedimiento en MATLAB + Simulink:
 
+> **Estado actual:** `crear_modelo_simulink_robot3gdl.m` ya cablea automáticamente los **tres** subsistemas (`PID_NoLineal`, `PD_Precomp`, `Par_Calculado`) siguiendo exactamente el patrón descrito abajo, y reacomoda el diagrama con `Simulink.BlockDiagram.arrangeSystem`. `PID_NoLineal` fue **validado en Simulink real**: compila (`Ctrl+D`) y converge correctamente al punto deseado. `PD_Precomp` y `Par_Calculado` usan el mismo patrón pero aún no se probaron en Simulink real. Esta guía sigue siendo el respaldo si la generación automática falla o si algún subsistema necesita ajuste manual.
+
 ## 0. Preparación previa en MATLAB
 
 Antes de abrir Simulink, ejecuta en la consola de MATLAB (con la carpeta `01_codigo_final/` en el path):
@@ -120,7 +122,7 @@ Copiar `mlfb_pd_precomp.m`. Firma:
 function tau = mlfb_pd_precomp(q, qdot, qd, qd_dot, qd_ddot, Kp, Kd)
 ```
 
-Usa `gains_pd.Kp`, `gains_pd.Kd`.
+Puertos: 1=q, 2=qdot, 3=qd, 4=qd_dot, 5=qd_ddot, 6=Kp, 7=Kd. No hay `eint` (no lleva integral de error) — `e = qd - q` se calcula dentro del propio bloque, así que **no** se necesitan los bloques `Error`/`Int_error` de `PID_NoLineal`. `Kp`, `Kd` van igual que en `PID_NoLineal`: bloques `Constant` (`Const_Kp`, `Const_Kd`) con `Value` = `gains_pd.Kp`, `gains_pd.Kd`, conectados a los puertos 6 y 7.
 
 ### Controlador — subsistema Par_Calculado
 
@@ -130,7 +132,7 @@ Copiar `mlfb_par_calculado.m`. Firma:
 function tau = mlfb_par_calculado(q, qdot, qd, qd_dot, qd_ddot, Kp, Kd)
 ```
 
-Usa `gains_ct.Kp`, `gains_ct.Kd`. Este es el controlador principal de la comparación final.
+Mismo patrón que `PD_Precomp` (puertos 1-7 en el mismo orden), con `Const_Kp`/`Const_Kd` = `gains_ct.Kp`, `gains_ct.Kd`. Este es el controlador principal de la comparación final.
 
 ## 4. Conexiones (igual patrón en los tres subsistemas)
 

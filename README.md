@@ -242,9 +242,12 @@ Criterios de aceptación por paso:
   las tres articulaciones convergen sin oscilación al punto deseado
   (`q_goal`), confirmando que la corrección del cableado de ganancias
   `Kp/Kd/Ki` y la planta dinámica (cilindro sólido) funcionan de extremo a
-  extremo. Pendiente: los subsistemas `PD_Precomp` y `Par_Calculado` se
-  generan como subsistemas vacíos (mismo patrón, cableado manual según
-  `guia_armado_simulink_robot3gdl.md`).
+  extremo. Los tres subsistemas (`PID_NoLineal`, `PD_Precomp`,
+  `Par_Calculado`) quedan completamente cableados por el script, con
+  reacomodo automático del diagrama (`Simulink.BlockDiagram.arrangeSystem`).
+  Pendiente: correr `PD_Precomp` y `Par_Calculado` en Simulink real para
+  confirmar que compilan igual que `PID_NoLineal` (mismo patrón, aún no
+  probado); la guía manual sigue siendo el respaldo si algo no conecta.
 - `robot3dof_TFinal_v3_controladores.m` y
   `robot3dof_TFinal_v4_astar_obstaculos.m` usan una versión anterior y más
   simple de la dinámica (no la de Jacobianos). Pendiente: reescribirlos
