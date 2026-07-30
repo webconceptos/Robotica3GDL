@@ -5,25 +5,24 @@
 % Archivo    : robot3dof_TFinal_v4_astar_obstaculos.m
 %
 % Punto de partida:
-% Esta version parte de robot3dof_TFinal_v3_controladores.m (cinematica +
-% dinamica + tres controladores ya validados sobre una trayectoria
-% punto-a-punto simple).
+% Esta version parte de robot3dof_TFinal_v3_controladores.m: cinematica,
+% dinamica por Jacobianos + Christoffel (n=3), y los tres controladores ya
+% validados sobre una trayectoria punto-a-punto simple (ver README.md,
+% Seccion 2.6, para el resultado de referencia en Simulink).
 %
 % Alcance de esta version (bloque "planeacion con obstaculos", version final):
-%   A) Cinematica, dinamica y controladores heredados de v2/v3 (sin cambios
-%      en las leyes de control).
+%   A) Cinematica, dinamica y controladores heredados de v2/v3 (Jacobianos +
+%      Christoffel, sin cambios en las leyes de control).
 %   B) Planeacion autonoma en el plano cartesiano XZ mediante A*, con
 %      obstaculos circulares.
 %   C) Conversion de la ruta A* a trayectoria articular qd(t) mediante
 %      cinematica inversa e interpolacion (pchip).
 %   D) Los tres controladores siguen la MISMA trayectoria planeada, lo cual
 %      permite una comparacion justa incluyendo evasion de obstaculos.
-%   E) Metricas comparativas y graficas completas.
+%   E) Metricas comparativas (error ARTICULAR, confirmado por el docente) y
+%      graficas completas, incluyendo el mapa de obstaculos.
 %
-% Esta es la version que integra todos los bloques del trabajo final y es
-% funcionalmente equivalente a robot3dof_TFinal_v1.m (la version preliminar
-% integrada usada para la primera presentacion), pero documentada siguiendo
-% la progresion incremental v2 -> v3 -> v4 del enunciado del trabajo final.
+% Esta es la version que integra todos los bloques del trabajo final.
 %
 % Paper base del parcial:
 % Ashagrie, A., Salau, A. O., & Weldcherkos, T. (2021).
@@ -36,23 +35,17 @@
 % [P2] Paper, Pag. 6, Seccion 3.1 y Tabla 1: parametros DH del robot.
 % [P3] Paper, Pag. 7, Ecs. (4)-(5): matriz homogenea T03 y posicion.
 % [P4] Paper, Pag. 7, Seccion 3.2, Ecs. (6)-(8): cinematica inversa.
-% [P5] Paper, Pag. 8, Tabla 2: L1=0.15 m, L2=0.50 m, L3=0.50 m.
+% [P5] Paper, Pag. 8, Tabla 2: L1=0.15 m, L2=0.50 m, L3=0.50 m, m1=m2=m3=0.5
+%      kg, g=9.81 m/s^2 (dato reportado, no supuesto).
 %
-% Notas metodologicas IMPORTANTES:
-% 1) El paper base no reporta masas, inercias ni centros de masa completos.
-%    Se usan parametros fisicos asumidos y declarados explicitamente
-%    (Supuesto para simulacion: el paper base no reporta masa/inercia
-%    completa).
-% 2) La planeacion se realiza en el plano XZ manteniendo Y constante, para
-%    facilitar la visualizacion; es una decision defendible para un robot
-%    3GDL que debe posicionar su efector evitando obstaculos.
+% Supuestos fisicos: ver encabezado de robot3dof_TFinal_v2_dinamica_jacobianos.m
+% (centros de masa lc_i=L_i/2 y radio de cilindro r=0.03 m para los tres
+% eslabones, no reportados por el paper).
 %
-% Preguntas pendientes al docente:
-%   Q1. ¿Se acepta usar parametros fisicos asumidos y justificados para
-%       implementar M(q), C(q,dq), G(q)?
-%   Q2. ¿La planeacion autonoma con obstaculos puede realizarse en espacio
-%       cartesiano con A* y luego convertirse a espacio articular mediante
-%       cinematica inversa?
+% Nota metodologica sobre la planeacion:
+% La planeacion se realiza en el plano XZ manteniendo Y constante, para
+% facilitar la visualizacion; es una decision defendible para un robot
+% 3GDL que debe posicionar su efector evitando obstaculos.
 % -------------------------------------------------------------------------
 
 clc; clear; close all;
@@ -61,30 +54,36 @@ clc; clear; close all;
 % 1. PARAMETROS GEOMETRICOS Y FISICOS DEL ROBOT
 % Objetivo: mismos parametros que v2/v3, reutilizados para que este archivo
 %           corra de forma independiente.
-% Fuente/justificacion: geometria del paper base [P5]; masas/inercias
-%           asumidas para simulacion (ver nota metodologica 1).
+% Fuente/justificacion: L1,L2,L3,m1,m2,m3,g de la Tabla 2 del paper base
+%           (dato reportado); centros de masa y radio de cilindro son
+%           supuestos de simulacion (cilindro solido, indicacion del docente).
 % Resultado esperado: estructura "robot" identica a las versiones previas.
 %% ================================================================
-robot.L1 = 0.15;        % altura/base [m]
-robot.L2 = 0.50;        % longitud eslabon 2 [m]
-robot.L3 = 0.50;        % longitud eslabon 3 [m]
+robot.L1 = 0.15; robot.L2 = 0.50; robot.L3 = 0.50;
 
-robot.m1 = 2.00;        % masa equivalente base/eslabon 1 [kg]
-robot.m2 = 1.50;        % masa eslabon 2 [kg]
-robot.m3 = 1.00;        % masa eslabon 3 [kg]
-robot.lc2 = robot.L2/2; % centro de masa eslabon 2 [m]
-robot.lc3 = robot.L3/2; % centro de masa eslabon 3 [m]
-robot.I1 = 0.030;       % inercia equivalente junta 1 [kg*m^2]
-robot.I2 = robot.m2*robot.L2^2/12; % inercia barra eslabon 2 [kg*m^2]
-robot.I3 = robot.m3*robot.L3^2/12; % inercia barra eslabon 3 [kg*m^2]
-robot.g  = 9.81;        % gravedad [m/s^2]
+robot.m1 = 0.50; robot.m2 = 0.50; robot.m3 = 0.50; % Tabla 2 del paper, Pag. 8
+
+robot.lc1 = robot.L1/2; robot.lc2 = robot.L2/2; robot.lc3 = robot.L3/2; % supuesto
+robot.g = 9.81;
+
+robot.r1 = 0.03; robot.r2 = 0.03; robot.r3 = 0.03; % [m] radio asumido (cilindro solido)
+I_axial1 = 0.5*robot.m1*robot.r1^2;
+I_trans1 = (1/12)*robot.m1*(3*robot.r1^2 + robot.L1^2);
+I_axial2 = 0.5*robot.m2*robot.r2^2;
+I_trans2 = (1/12)*robot.m2*(3*robot.r2^2 + robot.L2^2);
+I_axial3 = 0.5*robot.m3*robot.r3^2;
+I_trans3 = (1/12)*robot.m3*(3*robot.r3^2 + robot.L3^2);
+robot.I1 = diag([I_trans1, I_axial1, I_trans1]);
+robot.I2 = diag([I_axial2, I_trans2, I_trans2]);
+robot.I3 = diag([I_axial3, I_trans3, I_trans3]);
 
 robot.tau_max = [80; 80; 60]; % [N*m] proteccion numerica de saturacion
 
 fprintf('============================================================\n');
 fprintf(' ROBOT ANTROPOMORFICO 3GDL - TRABAJO FINAL v4 (A* Y OBSTACULOS)\n');
 fprintf('============================================================\n');
-fprintf('Geometria: L1=%.2f m, L2=%.2f m, L3=%.2f m\n\n', robot.L1, robot.L2, robot.L3);
+fprintf('Geometria (paper): L1=%.2f m, L2=%.2f m, L3=%.2f m\n', robot.L1, robot.L2, robot.L3);
+fprintf('Masas (paper, Tabla 2): m1=%.2f, m2=%.2f, m3=%.2f kg\n\n', robot.m1, robot.m2, robot.m3);
 
 %% ================================================================
 % 2. PLANEACION AUTONOMA CON OBSTACULOS - A* EN PLANO XZ
@@ -92,7 +91,7 @@ fprintf('Geometria: L1=%.2f m, L2=%.2f m, L3=%.2f m\n\n', robot.L1, robot.L2, ro
 %           de inicio y una meta, evitando obstaculos circulares.
 % Fuente/justificacion: A* 8-conectado sobre grilla de ocupacion en el
 %           plano XZ (Y constante), decision defendible y facil de
-%           visualizar para un robot 3GDL (ver nota metodologica 2).
+%           visualizar para un robot 3GDL.
 % Resultado esperado: path_xz sin colisiones con los obstaculos definidos.
 %% ================================================================
 planner.y_const = 0.12;      % plano de trabajo Y constante [m]
@@ -138,7 +137,7 @@ if any(~reachable_flags)
 end
 fprintf('Waypoints alcanzables por IK: %d\n', size(q_waypoints,2));
 
-dt = 0.01;       % paso de simulacion [s]
+dt = 0.01;       % paso de muestreo de la trayectoria de referencia [s]
 tf = 8.0;        % duracion total [s]
 traj = make_joint_trajectory(q_waypoints, tf, dt);
 
@@ -179,18 +178,26 @@ fprintf('3/3 Control por par calculado...\n');
 res_ct = simulate_robot_controller('PAR_CALCULADO', robot, traj, q0, qdot0, gains_ct);
 
 %% ================================================================
-% 6. METRICAS COMPARATIVAS
+% 6. METRICAS COMPARATIVAS (ERROR ARTICULAR)
 % Objetivo: cuantificar desempeno de cada controlador sobre la trayectoria
-%           con obstaculos.
-% Resultado esperado: tabla con error RMS/max, torque RMS/max y error final.
+%           con obstaculos, con las metricas confirmadas por el docente:
+%           error ARTICULAR (no cartesiano), RMS/maximo, tiempo de
+%           estabilizacion, y cual controlador converge mas rapido.
+% Resultado esperado: tabla comparativa.
 %% ================================================================
-metrics = [compute_metrics(res_pid, traj, 'PID no lineal');
-           compute_metrics(res_pd,  traj, 'PD precompensado');
-           compute_metrics(res_ct,  traj, 'Par calculado')];
+tol = 0.02;
+m_pid = compute_metrics(res_pid, traj, 'PID no lineal', tol);
+m_pd  = compute_metrics(res_pd,  traj, 'PD precompensado', tol);
+m_ct  = compute_metrics(res_ct,  traj, 'Par calculado', tol);
 
-disp('================ METRICAS COMPARATIVAS ================');
+metrics = [m_pid; m_pd; m_ct];
+disp('================ METRICAS COMPARATIVAS (error articular) ================');
 Tmetrics = struct2table(metrics);
 disp(Tmetrics);
+
+[~, idx_best] = min([m_pid.TiempoEstabilizacion_s, m_pd.TiempoEstabilizacion_s, m_ct.TiempoEstabilizacion_s]);
+nombres = {'PID no lineal','PD precompensado','Par calculado'};
+fprintf('Controlador que converge mas rapido a cero: %s\n', nombres{idx_best});
 
 %% ================================================================
 % 7. GRAFICAS FINALES PARA LA PRESENTACION
@@ -205,8 +212,7 @@ plot_torques(traj, res_pid, res_pd, res_ct);
 plot_ee_paths(robot, traj, res_pid, res_pd, res_ct, obstacles, planner);
 
 fprintf('\n================ RESUMEN v4 (VERSION FINAL) ================\n');
-fprintf('Se integraron dinamica, los tres controladores y planeacion A* con obstaculos.\n');
-fprintf('Pendiente por confirmar con docente: parametros fisicos asumidos y obligatoriedad de Simulink.\n');
+fprintf('Se integraron dinamica por Jacobianos, los tres controladores y planeacion A* con obstaculos.\n');
 fprintf('Simulacion final completada correctamente.\n');
 
 %% ================================================================
@@ -214,8 +220,6 @@ fprintf('Simulacion final completada correctamente.\n');
 % ================================================================
 
 function A = dh_standard(theta, d, a, alpha)
-    % Matriz DH estandar:
-    % A = RotZ(theta)*TransZ(d)*TransX(a)*RotX(alpha)
     ct = cos(theta); st = sin(theta);
     ca = cos(alpha); sa = sin(alpha);
     A = [ct, -st*ca,  st*sa, a*ct;
@@ -225,7 +229,6 @@ function A = dh_standard(theta, d, a, alpha)
 end
 
 function [T03, p, R] = fk_3dof(q, robot)
-    % Cinematica directa del robot antropomorfico 3R usando DH del paper.
     L1 = robot.L1; L2 = robot.L2; L3 = robot.L3;
     q1 = q(1); q2 = q(2); q3 = q(3);
     A01 = dh_standard(q1, L1, 0,  pi/2);
@@ -237,7 +240,6 @@ function [T03, p, R] = fk_3dof(q, robot)
 end
 
 function [q_up, q_down, reachable] = ik_3dof(p, robot)
-    % Cinematica inversa geometrica para robot 3R.
     L1 = robot.L1; L2 = robot.L2; L3 = robot.L3;
     px = p(1); py = p(2); pz = p(3);
     q1 = atan2(py, px);
@@ -260,63 +262,72 @@ function [q_up, q_down, reachable] = ik_3dof(p, robot)
     q_down = wrap_to_pi_local([q1; q2_down; q3_down]);
 end
 
-function [J, detJ] = jacobian_3dof(q, robot)
-    % Jacobiano translacional derivado de:
-    % px = L2*C1*C2 + L3*C1*C23
-    % py = L2*S1*C2 + L3*S1*C23
-    % pz = L1 + L2*S2 + L3*S23
-    L2 = robot.L2; L3 = robot.L3;
+%% ================================================================
+% FUNCIONES LOCALES - DINAMICA POR JACOBIANOS (identicas a v2/v3)
+% ================================================================
+
+function [pc1, pc2, pc3, Jv1, Jv2, Jv3, Jw1, Jw2, Jw3, R1, R2, R3] = com_kinematics_3dof(q, robot)
+    L1 = robot.L1; L2 = robot.L2;
+    lc1 = robot.lc1; lc2 = robot.lc2; lc3 = robot.lc3;
     q1 = q(1); q2 = q(2); q3 = q(3);
     C1 = cos(q1); S1 = sin(q1);
     C2 = cos(q2); S2 = sin(q2);
-    C23 = cos(q2 + q3); S23 = sin(q2 + q3);
-    J = [ -L3*S1*C23 - L2*S1*C2,  -L3*C1*S23 - L2*C1*S2,  -L3*C1*S23;
-           L3*C1*C23 + L2*C1*C2,  -L3*S1*S23 - L2*S1*S2,  -L3*S1*S23;
-           0,                       L3*C23 + L2*C2,          L3*C23];
-    detJ = det(J);
+    C23 = cos(q2+q3); S23 = sin(q2+q3);
+
+    z0 = [0;0;1];
+    zjoint23 = [S1; -C1; 0];
+
+    R1 = [C1, 0, S1; S1, 0, -C1; 0, 1, 0];
+    R2 = [C1*C2, -C1*S2, S1; S1*C2, -S1*S2, -C1; S2, C2, 0];
+    R3 = [C1*C23, -C1*S23, S1; S1*C23, -S1*S23, -C1; S23, C23, 0];
+
+    pc1 = [0; 0; lc1];
+    pc2 = [lc2*C1*C2; lc2*S1*C2; L1 + lc2*S2];
+    pc3 = [L2*C1*C2 + lc3*C1*C23; L2*S1*C2 + lc3*S1*C23; L1 + L2*S2 + lc3*S23];
+
+    Jv1 = zeros(3,3);
+    Jv2 = [-lc2*S1*C2, -lc2*C1*S2, 0;
+            lc2*C1*C2, -lc2*S1*S2, 0;
+            0,          lc2*C2,    0];
+    Jv3 = [-S1*(L2*C2+lc3*C23), -C1*(L2*S2+lc3*S23), -C1*lc3*S23;
+            C1*(L2*C2+lc3*C23), -S1*(L2*S2+lc3*S23), -S1*lc3*S23;
+            0,                    L2*C2+lc3*C23,        lc3*C23];
+
+    Jw1 = [z0, [0;0;0], [0;0;0]];
+    Jw2 = [z0, zjoint23, [0;0;0]];
+    Jw3 = [z0, zjoint23, zjoint23];
 end
 
-%% ================================================================
-% FUNCIONES LOCALES - DINAMICA
-% ================================================================
-
 function M = inertia_matrix_3dof(q, robot)
-    % Matriz de inercia aproximada. Supuestos: q1 giro de base; q2-q3
-    % manipulador planar 2R; se ignoran acoplamientos yaw/plano.
-    q2 = q(2); q3 = q(3);
-    L2 = robot.L2; lc2 = robot.lc2; lc3 = robot.lc3;
-    m2 = robot.m2; m3 = robot.m3;
-    I1 = robot.I1; I2 = robot.I2; I3 = robot.I3;
-
-    r2 = lc2*cos(q2);
-    r3 = L2*cos(q2) + lc3*cos(q2+q3);
-    M11 = I1 + m2*r2^2 + m3*r3^2;
-
-    M22 = I2 + I3 + m2*lc2^2 + m3*(L2^2 + lc3^2 + 2*L2*lc3*cos(q3));
-    M23 = I3 + m3*(lc3^2 + L2*lc3*cos(q3));
-    M33 = I3 + m3*lc3^2;
-
-    M = [M11, 0,   0;
-         0,   M22, M23;
-         0,   M23, M33];
-
-    M = M + 1e-6*eye(3);
+    [~, ~, ~, Jv1, Jv2, Jv3, Jw1, Jw2, Jw3, R1, R2, R3] = com_kinematics_3dof(q, robot);
+    M = robot.m1*(Jv1.'*Jv1) + Jw1.'*R1*robot.I1*R1.'*Jw1 + ...
+        robot.m2*(Jv2.'*Jv2) + Jw2.'*R2*robot.I2*R2.'*Jw2 + ...
+        robot.m3*(Jv3.'*Jv3) + Jw3.'*R3*robot.I3*R3.'*Jw3;
+    M = (M + M.')/2;
 end
 
 function C = coriolis_matrix_3dof(q, qdot, robot)
-    % Matriz C aproximada del submodelo planar 2R q2-q3.
-    q3 = q(3);
-    dq2 = qdot(2); dq3 = qdot(3);
-    h = -robot.m3*robot.L2*robot.lc3*sin(q3);
-
-    C = zeros(3,3);
-    C(2,2) = h*dq3;
-    C(2,3) = h*(dq2 + dq3);
-    C(3,2) = -h*dq2;
+    n = 3;
+    h = 1e-6;
+    dM = cell(1,n);
+    for k = 1:n
+        dq = zeros(n,1); dq(k) = h;
+        Mp = inertia_matrix_3dof(q + dq, robot);
+        Mm = inertia_matrix_3dof(q - dq, robot);
+        dM{k} = (Mp - Mm)/(2*h);
+    end
+    C = zeros(n,n);
+    for i = 1:n
+        for j = 1:n
+            for k = 1:n
+                cijk = 0.5*(dM{k}(i,j) + dM{j}(i,k) - dM{i}(j,k));
+                C(i,j) = C(i,j) + cijk*qdot(k);
+            end
+        end
+    end
 end
 
 function G = gravity_vector_3dof(q, robot)
-    % Vector de gravedad G(q) = dV/dq. La gravedad afecta q2 y q3.
     q2 = q(2); q3 = q(3);
     g = robot.g;
     L2 = robot.L2; lc2 = robot.lc2; lc3 = robot.lc3;
@@ -328,8 +339,7 @@ function G = gravity_vector_3dof(q, robot)
     G = [G1; G2; G3];
 end
 
-function qddot = robot_dynamics(q, qdot, tau, robot)
-    % Dinamica directa: qdd = inv(M)*(tau - C*dq - G)
+function qddot = robot_dynamics_3dof(q, qdot, tau, robot)
     M = inertia_matrix_3dof(q, robot);
     C = coriolis_matrix_3dof(q, qdot, robot);
     G = gravity_vector_3dof(q, robot);
@@ -341,16 +351,12 @@ end
 % ================================================================
 
 function tau = control_pid_nonlinear(q, qdot, qd, qd_dot, eint, robot, gains)
-    % Control de posicion: PID + compensacion gravitacional G(q), que
-    % introduce el caracter no lineal del controlador.
     e = qd - q;
     de = qd_dot - qdot;
     tau = gains.Kp*e + gains.Kd*de + gains.Ki*eint + gravity_vector_3dof(q, robot);
 end
 
 function tau = control_pd_precomp(q, qdot, qd, qd_dot, qd_ddot, robot, gains)
-    % PD con precompensacion: feedforward M,C,G evaluados en la trayectoria
-    % deseada, mas realimentacion PD del error.
     e = qd - q;
     de = qd_dot - qdot;
     Mqd = inertia_matrix_3dof(qd, robot);
@@ -361,9 +367,6 @@ function tau = control_pd_precomp(q, qdot, qd, qd_dot, qd_ddot, robot, gains)
 end
 
 function tau = control_computed_torque(q, qdot, qd, qd_dot, qd_ddot, robot, gains)
-    % Control por par calculado: se usa el modelo dinamico completo
-    % evaluado en el estado real (q, qdot), lo que permite cancelar la
-    % dinamica no lineal del robot.
     e = qd - q;
     de = qd_dot - qdot;
     Mq = inertia_matrix_3dof(q, robot);
@@ -378,73 +381,8 @@ function tau_sat = saturate_torque(tau, robot)
 end
 
 %% ================================================================
-% FUNCIONES LOCALES - SIMULACION Y METRICAS
-% ================================================================
-
-function res = simulate_robot_controller(controller_name, robot, traj, q0, qdot0, gains)
-    N = length(traj.t);
-    dt = traj.dt;
-    q = zeros(3,N);
-    qdot = zeros(3,N);
-    tau = zeros(3,N);
-    qddot = zeros(3,N);
-    eint = zeros(3,1);
-
-    q(:,1) = q0;
-    qdot(:,1) = qdot0;
-
-    for k = 1:N-1
-        qd = traj.qd(:,k);
-        qd_dot = traj.qd_dot(:,k);
-        qd_ddot = traj.qd_ddot(:,k);
-        e = qd - q(:,k);
-        eint = eint + e*dt;
-
-        switch upper(controller_name)
-            case 'PID_NO_LINEAL'
-                tau(:,k) = control_pid_nonlinear(q(:,k), qdot(:,k), qd, qd_dot, eint, robot, gains);
-            case 'PD_PRECOMP'
-                tau(:,k) = control_pd_precomp(q(:,k), qdot(:,k), qd, qd_dot, qd_ddot, robot, gains);
-            case 'PAR_CALCULADO'
-                tau(:,k) = control_computed_torque(q(:,k), qdot(:,k), qd, qd_dot, qd_ddot, robot, gains);
-            otherwise
-                error('Controlador no reconocido: %s', controller_name);
-        end
-
-        tau(:,k) = saturate_torque(tau(:,k), robot);
-        qddot(:,k) = robot_dynamics(q(:,k), qdot(:,k), tau(:,k), robot);
-
-        % Integracion semi-implicita simple.
-        qdot(:,k+1) = qdot(:,k) + qddot(:,k)*dt;
-        q(:,k+1) = q(:,k) + qdot(:,k+1)*dt;
-        q(:,k+1) = wrap_to_pi_local(q(:,k+1));
-    end
-
-    tau(:,N) = tau(:,N-1);
-    qddot(:,N) = qddot(:,N-1);
-
-    res.name = controller_name;
-    res.q = q;
-    res.qdot = qdot;
-    res.qddot = qddot;
-    res.tau = tau;
-    res.err = traj.qd - q;
-end
-
-function m = compute_metrics(res, traj, label)
-    e = traj.qd - res.q;
-    e_norm = vecnorm(e,2,1);
-    tau_norm = vecnorm(res.tau,2,1);
-    m.Controlador = string(label);
-    m.Error_RMS_rad = sqrt(mean(e_norm.^2));
-    m.Error_Max_rad = max(e_norm);
-    m.Torque_RMS_Nm = sqrt(mean(tau_norm.^2));
-    m.Torque_Max_Nm = max(tau_norm);
-    m.Error_Final_rad = e_norm(end);
-end
-
-%% ================================================================
-% FUNCIONES LOCALES - PLANEACION A*
+% FUNCIONES LOCALES - PLANEACION A* (geometria pura, sin cambios respecto
+% a versiones anteriores: no depende del modelo dinamico)
 % ================================================================
 
 function [path_xz, map] = astar_plan_xz(start_xz, goal_xz, obstacles, planner)
@@ -470,7 +408,7 @@ function [path_xz, map] = astar_plan_xz(start_xz, goal_xz, obstacles, planner)
         path_xz = [linspace(start_xz(1), goal_xz(1), 25)', linspace(start_xz(2), goal_xz(2), 25)'];
     else
         path_xz = [xs(path_idx(:,1))', zs(path_idx(:,2))'];
-        path_xz = simplify_path(path_xz, 2); % reduce puntos para interpolacion mas suave
+        path_xz = simplify_path(path_xz, 2);
     end
 
     map.xs = xs;
@@ -485,7 +423,6 @@ function idx = world_to_grid(p, xs, zs)
 end
 
 function path = astar_grid(occ, start_idx, goal_idx)
-    % A* 8-conectado sobre una matriz de ocupacion.
     [nz,nx] = size(occ);
     start_key = sub2ind([nz,nx], start_idx(2), start_idx(1));
     goal_key  = sub2ind([nz,nx], goal_idx(2),  goal_idx(1));
@@ -594,6 +531,12 @@ function [q_path, reachable] = cartesian_path_to_joint_path(path_cart, robot)
 end
 
 function traj = make_joint_trajectory(q_waypoints, tf, dt)
+    % Interpola los waypoints articulares (de la ruta A* convertida por IK)
+    % con pchip para obtener qd(t) suave; qd_dot, qd_ddot por diferenciacion
+    % numerica (gradient). Se muestrea densamente (dt=0.01) para que la
+    % interpolacion LINEAL usada despues por eval_traj_at (necesaria para
+    % que ode45 pueda consultar el lazo cerrado en instantes continuos
+    % arbitrarios) introduzca un error despreciable frente a la de pchip.
     nwp = size(q_waypoints,2);
     t_wp = linspace(0, tf, nwp);
     t = 0:dt:tf;
@@ -612,6 +555,108 @@ function traj = make_joint_trajectory(q_waypoints, tf, dt)
     traj.qd = qd;
     traj.qd_dot = qd_dot;
     traj.qd_ddot = qd_ddot;
+end
+
+function [qd, qd_dot, qd_ddot] = eval_traj_at(traj, t)
+    % Evalua qd/qd_dot/qd_ddot en un instante continuo arbitrario t,
+    % interpolando linealmente sobre la malla densa (dt=0.01) de
+    % make_joint_trajectory. Necesario para integrar con ode45.
+    t = min(max(t, traj.t(1)), traj.t(end));
+    qd = zeros(3,1); qd_dot = zeros(3,1); qd_ddot = zeros(3,1);
+    for i = 1:3
+        qd(i) = interp1(traj.t, traj.qd(i,:), t, 'linear');
+        qd_dot(i) = interp1(traj.t, traj.qd_dot(i,:), t, 'linear');
+        qd_ddot(i) = interp1(traj.t, traj.qd_ddot(i,:), t, 'linear');
+    end
+end
+
+%% ================================================================
+% FUNCIONES LOCALES - SIMULACION Y METRICAS
+% ================================================================
+
+function dx = closed_loop_ode(t, x, controller_name, robot, gains, traj)
+    % Estado aumentado x = [q(3); qdot(3); eint(3)] (9x1), integrado con
+    % ode45 (paso variable) en vez de Euler de paso fijo -- ver
+    % robot3dof_TFinal_v3_controladores.m para la justificacion (Euler con
+    % dt=0.01 diverge para PID_NO_LINEAL/PD_PRECOMP con esta dinamica mas
+    % ligera; ode45 reproduce fielmente el resultado ya validado en Simulink).
+    q = x(1:3); qdot = x(4:6); eint = x(7:9);
+    [qd, qd_dot, qd_ddot] = eval_traj_at(traj, t);
+
+    switch upper(controller_name)
+        case 'PID_NO_LINEAL'
+            tau = control_pid_nonlinear(q, qdot, qd, qd_dot, eint, robot, gains);
+        case 'PD_PRECOMP'
+            tau = control_pd_precomp(q, qdot, qd, qd_dot, qd_ddot, robot, gains);
+        case 'PAR_CALCULADO'
+            tau = control_computed_torque(q, qdot, qd, qd_dot, qd_ddot, robot, gains);
+        otherwise
+            error('Controlador no reconocido: %s', controller_name);
+    end
+    tau = saturate_torque(tau, robot);
+    qddot = robot_dynamics_3dof(q, qdot, tau, robot);
+    e = qd - q;
+    dx = [qdot; qddot; e];
+end
+
+function res = simulate_robot_controller(controller_name, robot, traj, q0, qdot0, gains)
+    x0 = [q0; qdot0; zeros(3,1)];
+    opts = odeset('RelTol', 1e-6, 'AbsTol', 1e-8);
+    ode_fun = @(t,x) closed_loop_ode(t, x, controller_name, robot, gains, traj);
+    [~, X] = ode45(ode_fun, traj.t, x0, opts);
+
+    N = length(traj.t);
+    q = X(:,1:3)';
+    qdot = X(:,4:6)';
+    eint = X(:,7:9)';
+    tau = zeros(3,N);
+    qddot = zeros(3,N);
+    for k = 1:N
+        [qd, qd_dot, qd_ddot] = eval_traj_at(traj, traj.t(k));
+        switch upper(controller_name)
+            case 'PID_NO_LINEAL'
+                tau(:,k) = control_pid_nonlinear(q(:,k), qdot(:,k), qd, qd_dot, eint(:,k), robot, gains);
+            case 'PD_PRECOMP'
+                tau(:,k) = control_pd_precomp(q(:,k), qdot(:,k), qd, qd_dot, qd_ddot, robot, gains);
+            case 'PAR_CALCULADO'
+                tau(:,k) = control_computed_torque(q(:,k), qdot(:,k), qd, qd_dot, qd_ddot, robot, gains);
+        end
+        tau(:,k) = saturate_torque(tau(:,k), robot);
+        qddot(:,k) = robot_dynamics_3dof(q(:,k), qdot(:,k), tau(:,k), robot);
+    end
+
+    res.name = controller_name;
+    res.q = q;
+    res.qdot = qdot;
+    res.qddot = qddot;
+    res.tau = tau;
+    res.err = traj.qd - q;
+end
+
+function m = compute_metrics(res, traj, label, tol)
+    e = traj.qd - res.q;
+    e_norm = vecnorm(e,2,1);
+    tau_norm = vecnorm(res.tau,2,1);
+    m.Controlador = string(label);
+    m.Error_RMS_rad = sqrt(mean(e_norm.^2));
+    m.Error_Max_rad = max(e_norm);
+    m.TiempoEstabilizacion_s = settling_time(traj.t, e_norm, tol);
+    m.Torque_RMS_Nm = sqrt(mean(tau_norm.^2));
+    m.Torque_Max_Nm = max(tau_norm);
+end
+
+function ts = settling_time(t, e_norm, tol)
+    band = tol * max(e_norm);
+    outside = find(e_norm > band);
+    if isempty(outside)
+        ts = t(1);
+    else
+        idx = outside(end) + 1;
+        if idx > numel(t)
+            idx = numel(t);
+        end
+        ts = t(idx);
+    end
 end
 
 %% ================================================================
@@ -695,7 +740,6 @@ function plot_ee_paths(robot, traj, res_pid, res_pd, res_ct, obstacles, planner)
     plot3(x_pd(1,:),  x_pd(2,:),  x_pd(3,:),  'LineWidth', 1.2);
     plot3(x_ct(1,:),  x_ct(2,:),  x_ct(3,:),  'LineWidth', 1.2);
 
-    % Obstaculos dibujados como cilindros aproximados en el plano XZ.
     for i = 1:size(obstacles,1)
         [Xc,Yc,Zc] = cylinder(obstacles(i,3), 40);
         Xc = Xc + obstacles(i,1);

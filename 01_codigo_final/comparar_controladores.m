@@ -28,7 +28,7 @@
 %      controladores superpuestos, y el error total (norma).
 %   5) Calcula la tabla comparativa: Error RMS, Error maximo, Tiempo de
 %      estabilizacion, Torque RMS, Torque maximo (error ARTICULAR, segun
-%      lo confirmado por el docente - ver CLAUDE.md "Respuestas del
+%      lo confirmado por el docente - ver "Respuestas del
 %      docente").
 % -------------------------------------------------------------------------
 
@@ -71,6 +71,17 @@ e_pid = qd - q_pid_i;
 e_pd  = qd - q_pd_i;
 e_ct  = qd - q_ct_i;
 
+% tau_*_out viene con la malla de tiempo NATIVA del solver de Simulink (paso
+% variable), que no es uniforme y normalmente tiene mas muestras durante
+% los transitorios rapidos (torque cerca de saturacion). Si se calcula
+% sqrt(mean(tau.^2)) directamente sobre esa malla no uniforme, el resultado
+% queda sesgado (sobrepondera los tramos donde el solver dio pasos mas
+% pequenos). Se interpola tau sobre la MISMA malla uniforme t_qd que q,
+% igual que arriba, para que Torque_RMS sea un promedio temporal correcto.
+tau_pid_i = interp1(t_tpid, tau_pid, t_qd, 'linear', 'extrap');
+tau_pd_i  = interp1(t_tpd,  tau_pd,  t_qd, 'linear', 'extrap');
+tau_ct_i  = interp1(t_tct,  tau_ct,  t_qd, 'linear', 'extrap');
+
 %% ================================================================
 % 3. GRAFICAS: ERROR ARTICULAR POR JUNTA Y ERROR TOTAL
 % Resultado esperado: 4 figuras (q1,q2,q3, y norma total) con los tres
@@ -105,9 +116,9 @@ legend('PID no lineal', 'PD precompensado', 'Par calculado', 'Location', 'best')
 %% ================================================================
 tol = 0.02; % 2% de tolerancia sobre el error inicial, criterio de estabilizacion
 
-m_pid = compute_row('PID no lineal',      t_qd, e_pid, tau_pid, tol);
-m_pd  = compute_row('PD precompensado',   t_qd, e_pd,  tau_pd,  tol);
-m_ct  = compute_row('Par calculado',      t_qd, e_ct,  tau_ct,  tol);
+m_pid = compute_row('PID no lineal',      t_qd, e_pid, tau_pid_i, tol);
+m_pd  = compute_row('PD precompensado',   t_qd, e_pd,  tau_pd_i,  tol);
+m_ct  = compute_row('Par calculado',      t_qd, e_ct,  tau_ct_i,  tol);
 
 Tcomp = struct2table([m_pid; m_pd; m_ct]);
 disp('================ TABLA COMPARATIVA (error articular) ================');

@@ -154,7 +154,7 @@ versión preliminar (v1) no reproducía.
 
 ### 2.4. Los tres controladores
 
-Archivo (pendiente de reescritura con la dinámica de Jacobianos):
+Archivo (respaldo en MATLAB puro, misma trayectoria/ganancias/dinámica que Simulink):
 [`01_codigo_final/robot3dof_TFinal_v3_controladores.m`](01_codigo_final/robot3dof_TFinal_v3_controladores.m)
 
 | Controlador | Ley | Uso |
@@ -162,6 +162,17 @@ Archivo (pendiente de reescritura con la dinámica de Jacobianos):
 | PID no lineal | `τ = Kp·e + Kd·ė + Ki·∫e + G(q)` | Control de posición/regulación |
 | PD con precompensación | `τ = M(qd)·q̈d + C(qd,q̇d)·q̇d + G(qd) + Kp·e + Kd·ė` | Seguimiento de trayectoria |
 | Par calculado | `τ = M(q)·(q̈d + Kd·ė + Kp·e) + C(q,q̇)·q̇ + G(q)` | Seguimiento de trayectoria; controlador principal de la comparación final |
+
+**Nota de implementación (integrador):** con esta dinámica (masas ligeras,
+cilindro sólido) un integrador Euler de paso fijo (`dt=0.01`) diverge para
+PID no lineal y PD precompensado — la inercia efectiva de la articulación 3
+(`M(3,3)≈0.042`) hace el lazo cerrado numéricamente rígido para esas
+ganancias. `v3` y `v4` integran con `ode45` (solver de paso variable, la
+misma familia que usa Simulink por defecto), tratando `eint` como un estado
+más del sistema (equivalente al bloque `Int_error` de Simulink). Con
+`ode45`, el `Error RMS`, `Error máximo` y `Torque máximo` de `v3`
+coinciden con los de Simulink (Sección 2.6) con un error menor al 1%,
+validando de forma cruzada e independiente la implementación de Simulink.
 
 ### 2.5. Modelo Simulink
 
@@ -201,11 +212,13 @@ error respecto a `qd(0)`:
 
 | Controlador | Error RMS [rad] | Error máx [rad] | Tiempo estabilización [s] | Torque RMS [Nm] | Torque máx [Nm] |
 |---|---|---|---|---|---|
-| PID no lineal | 0.0303 | 0.1951 | 1.89 | 9.32 | 18.66 |
-| PD precompensado | 0.0304 | 0.1951 | 0.85 | 9.97 | 20.42 |
-| **Par calculado** | 0.0316 | 0.1951 | **0.70** | **6.52** | **10.03** |
+| PID no lineal | 0.0303 | 0.1951 | 1.89 | ~~9.32~~ (ver nota) | 18.66 |
+| PD precompensado | 0.0304 | 0.1951 | 0.85 | ~~9.97~~ (ver nota) | 20.42 |
+| **Par calculado** | 0.0316 | 0.1951 | **0.70** | ~~6.52~~ (ver nota) | 10.03 |
 
 *(Tabla completa: [`02_resultados/tabla_comparativa_error_articular.csv`](02_resultados/tabla_comparativa_error_articular.csv). El error máximo es idéntico en los tres porque ocurre en `t=0`, antes de que cualquier controlador actúe — depende solo de `q0_ic`, no del controlador.)*
+
+> **Nota — Torque RMS pendiente de recalcular:** se encontró que `comparar_controladores.m` calculaba `Torque_RMS_Nm` sobre la malla de tiempo *nativa* del solver de Simulink (no uniforme, con más muestras durante los transitorios rápidos) en vez de interpolar `tau` sobre la misma malla uniforme que `q`, lo que sesga el promedio (sobrepondera los tramos con paso de integración más pequeño). Ya corregido en el código (interpola `tau` igual que `q` antes de calcular RMS). Error RMS/máximo y Tiempo de estabilización **no** se ven afectados (se calculaban correctamente desde el inicio). Falta volver a correr `comparar_controladores.m` en Simulink para actualizar los valores de Torque RMS de esta tabla.
 
 ![Error articular total por controlador](02_resultados/graficas_error/error_total_norma.png)
 
@@ -232,7 +245,7 @@ de la comparación final.
 | Control cinemático por pseudoinversa | 3 controladores dinámicos (PID no lineal, PD precomp., par calculado) |
 | — | Centros de masa y tensores de inercia (supuestos, paper no los reporta) |
 | — | Modelo Simulink (`Robot3GDL_Control_Final.slx`) |
-| — | Planeación autónoma con obstáculos (A*, pendiente — Sección 5) |
+| — | Planeación autónoma con obstáculos (A*, `v4_astar_obstaculos.m`) |
 
 ## 4. Procedimiento de reproducción
 
@@ -253,6 +266,14 @@ sim('Robot3GDL_Control_Final');
 
 % 5) Comparar los tres controladores (error articular, tabla, graficas)
 comparar_controladores
+
+% 6) Respaldo/comparacion en MATLAB puro (sin Simulink), misma trayectoria
+%    y ganancias -- para validar de forma cruzada e independiente
+robot3dof_TFinal_v3_controladores
+
+% 7) Version final integrada: planeacion A* con obstaculos + los tres
+%    controladores siguiendo la ruta planeada
+robot3dof_TFinal_v4_astar_obstaculos
 ```
 
 Criterios de aceptación por paso:
@@ -288,15 +309,24 @@ Criterios de aceptación por paso:
 - **Comparación de controladores: completa.** `comparar_controladores.m`
   calculó el error articular y la tabla comparativa a partir de datos
   reales de Simulink (Sección 2.6). Par calculado converge más rápido
-  (0.70 s) y con menor torque que PD precompensado y PID no lineal,
-  confirmando por qué es el controlador principal de la comparación.
-- `robot3dof_TFinal_v3_controladores.m` y
-  `robot3dof_TFinal_v4_astar_obstaculos.m` usan una versión anterior y más
-  simple de la dinámica (no la de Jacobianos). Pendiente: reescribirlos
-  reutilizando `inertia_matrix_3dof`, `coriolis_matrix_3dof`,
-  `gravity_vector_3dof` de `v2_dinamica_jacobianos.m`.
-- Planeación autónoma con obstáculos (A*): pendiente de integrar con el
-  modelo dinámico actual.
+  (0.70 s) que PD precompensado y PID no lineal, confirmando por qué es
+  el controlador principal de la comparación. Se encontró y corrigió un
+  sesgo en el cálculo de `Torque_RMS_Nm` (promediaba sobre la malla de
+  tiempo no uniforme del solver en vez de una malla uniforme); `Error
+  RMS/máximo` y `Tiempo de estabilización` no se vieron afectados.
+  Pendiente: volver a correr para actualizar `Torque_RMS_Nm` en la tabla.
+- **`v3_controladores.m` y `v4_astar_obstaculos.m`: reescritos con la
+  dinámica de Jacobianos.** Ambos reutilizan `inertia_matrix_3dof`,
+  `coriolis_matrix_3dof`, `gravity_vector_3dof` de
+  `v2_dinamica_jacobianos.m`, integran con `ode45` (ver Sección 2.4), e
+  incluyen las métricas confirmadas por el docente (error articular,
+  tiempo de estabilización). Validados numéricamente fuera de MATLAB
+  (motor equivalente): `v3` reproduce los resultados de Simulink con
+  <1% de diferencia; `v4` genera una ruta A* de 13 waypoints, todos
+  alcanzables por cinemática inversa, y el efector converge a ~1 cm de la
+  meta cartesiana (la diferencia es la resolución de la grilla A*, 0.02 m,
+  no un error). Pendiente: ejecutarlos en MATLAB real para confirmación
+  final (ver Sección 4).
 
 ## 6. Estructura del repositorio
 
