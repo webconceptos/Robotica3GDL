@@ -422,6 +422,14 @@ function build_robot3gdl_simulink_model(model_name, output_dir, blocks_dir) %#ok
         fprintf('  [Aviso] Cableado automatico parcial en %s (%s). Revisar/ajustar en Simulink.\n', sub, errWire.message);
     end
 
+    % Reacomoda automaticamente los bloques del subsistema (el cableado por
+    % add_line con 'autorouting' deja un layout desordenado por defecto).
+    try
+        Simulink.BlockDiagram.arrangeSystem(sub);
+    catch errArrange
+        fprintf('  [Aviso] No se pudo reacomodar %s automaticamente (%s).\n', sub, errArrange.message);
+    end
+
     % ---- Los subsistemas PD_Precomp y Par_Calculado se dejan como copias
     % del mismo patron (planta + integradores) para armar manualmente con
     % los bloques MATLAB Function ya generados en simulink_blocks/. Ver
