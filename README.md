@@ -397,14 +397,18 @@ Criterios de aceptación por paso:
   (`v3`, `v4`), incluyendo la validación cruzada entre ambas plataformas
   (<1% de diferencia en Error/Torque RMS y máximo).
 
+- Propiedad `Ṁ(q) − 2·C(q,q̇)` antisimétrica (base de la prueba de
+  estabilidad de Lyapunov de los controladores): verificada
+  numéricamente en el código (residuo ≈ 1e-11 en el punto de prueba),
+  no solo mencionada como propiedad teórica.
+- Informe (`03_informe/`) y presentación (`04_presentacion/`):
+  **completos**, con carátula, logo y los tres nombres del grupo; el
+  informe incluye la galería completa de `02_resultados/` (no solo un
+  resumen) y la presentación tiene 27 diapositivas en 4 bloques
+  cronológicos, con notas del orador como guion de discurso.
+
 **Pendiente:**
 
-- Informe (`03_informe/Informe_Trabajo_Final_Robot_3GDL.docx`): borrador
-  completo con todo el contenido técnico; falta completar a mano el
-  logotipo institucional, los nombres del grupo, el índice automático y
-  exportar a PDF antes de la entrega.
-- Preparar la presentación (`04_presentacion/`) — no iniciada, siguiente
-  paso tras cerrar el informe.
 - Responder las preguntas pendientes al docente antes de la entrega
   final, en particular la de anti-windup del PID (ver nota sobre el
   tiempo de estabilización en la Sección 2.6).
@@ -421,7 +425,8 @@ Criterios de aceptación por paso:
   02.3_graficas_error/               Error articular (Simulink, v3, v4)
   02.4_graficas_torque/              Torque por controlador y por articulación (v3, v4)
   02.5_graficas_trayectoria_obstaculos/  Mapa A* y trayectoria cartesiana con obstáculos (v4)
-03_informe/            Informe final (borrador completo, pendiente de detalles de formato)
-04_presentacion/       Presentación (pendiente)
+03_informe/            Informe final (.docx/.pdf), con la galería completa de resultados
+04_presentacion/       Presentación final (27 diapositivas) y distribución de la sustentación
 05_anexos/             Guía de armado de Simulink, ecuaciones, capturas
+scripts/office/        Validador estructural del .pptx (validate.py)
 ```

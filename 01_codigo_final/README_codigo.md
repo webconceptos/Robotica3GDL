@@ -10,8 +10,10 @@ orden de ejecución:
   dinámica**. M(q), C(q,qdot), G(q) obtenidos por Jacobianos lineales/
   angulares de los centros de masa + coeficientes de Christoffel (n=3), sin
   Lagrange, según instrucción explícita del docente. Incluye supuestos
-  físicos documentados, prueba numérica, y una verificación simbólica
-  opcional (requiere Symbolic Math Toolbox).
+  físicos documentados, prueba numérica, una verificación simbólica
+  opcional (requiere Symbolic Math Toolbox), y la verificación numérica
+  de la propiedad `Ṁ(q) − 2·C(q,q̇)` antisimétrica (base de la prueba de
+  estabilidad de Lyapunov de los controladores; residuo ≈ 1e-11).
 - `robot3dof_TFinal_v2_simulink_generador.m`: prepara el workspace
   (parámetros, trayectoria, ganancias) y genera los archivos de bloques
   `MATLAB Function` en `simulink_blocks/`; construye
