@@ -358,6 +358,23 @@ if any(eigM <= 0)
     warning('M(q) no es definida positiva en la configuracion de prueba.');
 end
 
+% ---- Verificacion numerica de (Mdot - 2*C) antisimetrica ----
+% Propiedad estandar de un C(q,qdot) obtenido por Christoffel a partir de
+% una M(q) valida (Spong, Hutchinson & Vidyasagar, 2006); es la base de la
+% prueba de estabilidad de Lyapunov del PID no lineal (ver informe,
+% Seccion 2.3.1). Mdot se aproxima por diferencias centrales a lo largo de
+% la trayectoria q(t) = q_test + t*qdot_test, evaluada en t=0.
+h_mdot = 1e-6;
+M_plus  = inertia_matrix_3dof(q_test + h_mdot*qdot_test, robot);
+M_minus = inertia_matrix_3dof(q_test - h_mdot*qdot_test, robot);
+Mdot_test = (M_plus - M_minus) / (2*h_mdot);
+N_test = Mdot_test - 2*C_test;
+skew_residual = norm(N_test + N_test', 'fro'); % 0 exacto si N es antisimetrica
+fprintf('Chequeo (Mdot-2C) antisimetrica: ||N+N^T|| = %.3e (debe ser ~0)\n', skew_residual);
+if skew_residual > 1e-4
+    warning('(Mdot - 2*C) no resulto antisimetrica dentro de tolerancia numerica.');
+end
+
 % ---- Simulacion de dinamica libre (tau = 0): sanity check fisico ----
 dt = 0.005;
 tf_free = 2.0;

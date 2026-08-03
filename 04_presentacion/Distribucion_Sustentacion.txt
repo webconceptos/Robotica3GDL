@@ -1,0 +1,230 @@
+====================================================================
+ DISTRIBUCION DE LA SUSTENTACION - TRABAJO FINAL
+ Control de un Robot Antropomorfico de 3 GDL
+ Curso: Robotica y Sistemas Autonomos  |  Docente: Ing. Wilson D. Reyes Vasquez
+ Ciclo 2026-1  |  Grupo 2
+====================================================================
+
+INTEGRANTES
+  - Fernando Garcia Atuncar
+  - Carlos Gerardo Quispe Reynoso
+  - Gabriela Graciela Villegas Vasquez
+
+  (En el .pptx los divisores y la agenda usan rotulos genericos
+  "Expositor 1/2/3"; el orden de asignacion real de personas a cada
+  rol queda a criterio del equipo. Por defecto: Expositor 1 = Fernando,
+  Expositor 2 = Carlos, Expositor 3 = Gabriela.)
+
+CRITERIO DE REPARTO
+  Flujo cronologico natural del trabajo, desde donde nos dejo el
+  Parcial, en cuatro bloques tematicos. En cada etapa: primero la
+  teoria matematica, luego su implementacion real en MATLAB/Simulink
+  -- para proyectar dominio total del tema. Cada bloque de contenido
+  (2 y 3) cierra con diapositivas de "detalle/evidencia" que muestran
+  TODAS las graficas de 02_resultados/ (no solo un resumen): estas se
+  pasan rapido (~15 s cada una), pero deben estar, para que quede claro
+  que el analisis es exhaustivo y no selectivo. El turno de preguntas
+  se atiende por bloque; cada expositor responde las de su seccion.
+
+  OBJETIVO DE TIEMPO: ~20 minutos en total (20.6 min de contenido
+  hablado + margen natural para transiciones y preguntas puntuales
+  dentro de cada bloque). Ver tabla de tiempos sugeridos por
+  diapositiva mas abajo, antes de "RECOMENDACIONES DE ENSAYO".
+
+--------------------------------------------------------------------
+ BLOQUE 1 - EXPOSITOR 1
+ "Punto de partida y motivacion"
+ Diapositivas: 3 (divisor), 4-5   |  Tiempo objetivo: ~2.5-3 min
+--------------------------------------------------------------------
+CONTENIDO
+  - Apertura y agenda (diapositivas 1-2, antes del bloque).
+  - Trazabilidad Parcial -> Final (diapositiva 4): que dejo el Parcial
+    (cinematica DH/IK, Jacobiano, singularidades) y que se agrega en
+    el trabajo final.
+  - Introduccion y motivacion (diapositiva 5): el problema de control
+    -no basta alcanzar la posicion, hay que vencer la dinamica- y las
+    tres preguntas guia que estructuran toda la exposicion.
+
+PUNTOS CLAVE QUE DEBE DOMINAR
+  - Por que el problema exige compensar la dinamica del robot.
+  - Que elementos vienen del parcial sin modificar y cuales son nuevos.
+  - Las tres preguntas guia (se responden progresivamente en los
+    bloques siguientes).
+
+--------------------------------------------------------------------
+ BLOQUE 2 - EXPOSITOR 2
+ "Modelo dinamico"
+ Diapositivas: 6 (divisor), 7-11   |  Tiempo objetivo: ~6 min
+--------------------------------------------------------------------
+CONTENIDO
+  - Matriz de inercia M(q) por el metodo de Jacobianos (NO Lagrange):
+    rotaciones DH, centros de masa, Jacobianos lineales y angulares
+    (diapositiva 7: teoria; diapositiva 8: codigo real de
+    inertia_matrix_3dof, funcion dentro de
+    robot3dof_TFinal_v2_dinamica_jacobianos.m).
+  - Matriz de Coriolis C(q,qdot) por coeficientes de Christoffel (n=3)
+    y vector de gravedad G(q) en forma cerrada, G1=0 (diapositiva 9:
+    teoria; diapositiva 10: codigo real del triple bucle de
+    Christoffel).
+  - Propiedad Mdot - 2C antisimetrica (habilita la prueba de
+    estabilidad de Lyapunov del bloque 3), verificada numericamente en
+    el codigo (residuo ~1e-11).
+  - Validacion numerica: M definida positiva, dinamica libre
+    (diapositiva 11).
+
+PUNTOS CLAVE QUE DEBE DOMINAR
+  - Por que M(q) es simetrica y definida positiva (autovalores > 0).
+  - Por que G1 = 0 (la junta de base no cambia la energia potencial).
+  - El acoplamiento de Coriolis que mueve q1 aun con G1 = 0.
+  - Por que la version numerica de C (diferencias finitas) equivale a
+    la simbolica (Simulink no admite codigo simbolico en MATLAB
+    Function).
+
+PREGUNTA PROBABLE DEL DOCENTE
+  P: "Por que el metodo de Jacobianos y no la formulacion lagrangiana?"
+  R: Indicacion explicita del docente; ademas permite verificar cada
+     termino por separado y detectar errores (p. ej. una matriz de
+     rotacion mal orientada), cosa mas dificil con una unica expresion
+     lagrangiana cerrada.
+
+--------------------------------------------------------------------
+ BLOQUE 3 - EXPOSITOR 3
+ "Control e implementacion"
+ Diapositivas: 12 (divisor), 13-21   |  Tiempo objetivo: ~8.5-9 min
+--------------------------------------------------------------------
+CONTENIDO
+  - Las tres leyes de control (PID no lineal, PD precompensado, par
+    calculado) y su dinamica de error en lazo cerrado: par calculado
+    -> e'' + Kd*e' + Kp*e = 0 (lineal, desacoplada, exponencialmente
+    estable); PID estable por Lyapunov usando Mdot-2C antisimetrica
+    (diapositiva 13: teoria; diapositiva 14: codigo real del bloque
+    MATLAB Function mlfb_par_calculado.m, tal como corre en Simulink).
+  - Implementacion en Simulink: planta + 3 subsistemas, misma
+    trayectoria (diapositiva 15); evidencia de los tres Scopes reales
+    -PID, PD y Par calculado- convergiendo (diapositiva 16).
+  - Resultados comparativos: error, tiempo de estabilizacion, torque
+    (diapositiva 17).
+  - Diapositivas de detalle/evidencia completa (18-21, pasar rapido,
+    ~15 s cada una): error articular por junta en Simulink (18);
+    galeria completa de la validacion cruzada v3 en MATLAB puro --
+    seguimiento articular (19), error y trayectoria cartesiana (20),
+    torque por controlador y por articulacion (21).
+
+PUNTOS CLAVE QUE DEBE DOMINAR
+  - Diferencia entre evaluar el modelo en el estado real (par
+    calculado) vs. en la trayectoria deseada (PD precompensado).
+  - La ventaja del par calculado esta en el TIEMPO DE ESTABILIZACION
+    (0.70 s vs. 1.89 s del PID) y en el TORQUE MAXIMO (~10 N.m vs. ~20
+    N.m de PID/PD). El torque RMS es practicamente igual en los tres
+    (~4.2-4.3 N.m): NO afirmar que el par calculado "gana" en RMS, la
+    diferencia ahi es despreciable.
+  - La prueba de Lyapunov del PID usa la antisimetria Mdot - 2C.
+
+PREGUNTAS PROBABLES DEL DOCENTE
+  P1: "Por que el error maximo es identico en los tres controladores?"
+  R1: Ocurre en t = 0, antes de que actue cualquier controlador;
+      depende solo de la condicion inicial impuesta, no del
+      controlador.
+  P2: "Por que el PID difiere en tiempo de estabilizacion entre
+      Simulink y MATLAB puro?"
+  R2: El PID no incorpora anti-windup; esa no linealidad lo hace
+      sensible a diferencias minimas entre dos integraciones numericas
+      equivalentes. Se deja como recomendacion / pregunta al docente.
+
+--------------------------------------------------------------------
+ BLOQUE 4 (CIERRE) - EXPOSITOR 1
+ "Planeacion autonoma y conclusiones"
+ Diapositivas: 22 (divisor), 23-27   |  Tiempo objetivo: ~4.5 min
+--------------------------------------------------------------------
+CONTENIDO
+  - Planeacion autonoma con obstaculos A* (diapositiva 23): mapa ->
+    ruta -> cinematica inversa -> qd(t). Ahora que los tres
+    controladores ya se presentaron, el mensaje es que ESOS MISMOS
+    controladores (ya vistos en el bloque 3) siguen la trayectoria
+    qd(t) que genera A*, cerrando el circulo de todo el trabajo.
+  - Diapositivas de detalle/evidencia completa (24-26, pasar rapido,
+    ~15 s cada una): seguimiento articular con la ruta A* (24), error
+    y trayectoria cartesiana (25), torque por controlador y por
+    articulacion (26) -- misma logica de "galeria completa" que el
+    Bloque 3, ahora para v4.
+  - Conclusiones y cierre (diapositiva 27): las cuatro conclusiones y
+    las cifras clave (0.70 s, 10.03 N.m, antisimetria Mdot-2C
+    verificada, <1% Simulink vs. MATLAB).
+
+PUNTOS CLAVE QUE DEBE DOMINAR
+  - Como la ruta A* (13 waypoints) se convierte en trayectoria
+    articular por cinematica inversa.
+  - Que la planeacion autonoma no requirio controladores nuevos: reusa
+    los tres ya validados.
+
+PREGUNTA PROBABLE DEL DOCENTE
+  P: "La planeacion A* puede ejecutarse dentro de Simulink o solo en
+     MATLAB?"
+  R: Se planifica en MATLAB y se entrega la trayectoria articular
+     deseada qd(t) a Simulink. Queda como pregunta abierta al docente
+     si desea que el propio Simulink ejecute el algoritmo de busqueda.
+
+--------------------------------------------------------------------
+ TIEMPOS SUGERIDOS POR DIAPOSITIVA (objetivo total: ~20 min)
+--------------------------------------------------------------------
+  1  Portada                                            30 s
+  2  Agenda                                              30 s
+  3  Divisor Bloque 1                                    15 s
+  4  Trazabilidad Parcial -> Final                        65 s
+  5  Introduccion y motivacion (3 preguntas)              80 s
+  6  Divisor Bloque 2                                    15 s
+  7  M(q): teoria (Jacobianos)                            90 s
+  8  M(q): codigo real                                   55 s
+  9  Coriolis + G(q): teoria                              80 s
+ 10  Coriolis: codigo real                                55 s
+ 11  Validacion numerica del modelo                        70 s
+ 12  Divisor Bloque 3                                    15 s
+ 13  Controladores + estabilidad                         100 s
+ 14  Codigo real del control (par calculado)              55 s
+ 15  Implementacion en Simulink                           70 s
+ 16  Evidencia: los 3 Scopes reales (PID/PD/Par calc.)    15 s
+ 17  Resultados comparativos                             100 s
+ 18  Detalle: error articular por junta (Simulink)        15 s
+ 19  Detalle v3: seguimiento articular                    15 s
+ 20  Detalle v3: error y trayectoria cartesiana            15 s
+ 21  Detalle v3: torque por controlador/articulacion      15 s
+ 22  Divisor Bloque 4                                    15 s
+ 23  Planeacion autonoma A*                                80 s
+ 24  Detalle v4: seguimiento articular                    15 s
+ 25  Detalle v4: error y trayectoria cartesiana            15 s
+ 26  Detalle v4: torque por controlador/articulacion      15 s
+ 27  Conclusiones y cierre                                 80 s
+                                              ------------------
+                                              TOTAL   ~20.6 min
+
+  Las diapositivas de "detalle" (8, 10, 14, 16, 18-21, 24-26) son
+  evidencia de respaldo -toda grafica de 02_resultados/ esta en algun
+  lado de este mazo, ninguna quedo fuera-. Si un bloque se alarga
+  (preguntas del docente en vivo), recortar primero ahi: basta con
+  mostrar la diapositiva y decir una frase corta ("aqui esta el
+  detalle completo, mismo patron ya explicado") sin detenerse en cada
+  grafica individual.
+
+--------------------------------------------------------------------
+ RECOMENDACIONES DE ENSAYO
+--------------------------------------------------------------------
+  - Cada expositor prepara una diapositiva de transicion hacia el
+    siguiente bloque (ya incluidas como divisores en el .pptx).
+  - Ensayar el traspaso de turno en voz alta ("continua el siguiente
+    expositor...").
+  - Repasar el sustento matematico: el docente prioriza justificar
+    cada calculo. Tener claras las derivaciones de M, C, G y la de
+    estabilidad del par calculado.
+  - Cada integrante responde las preguntas de SU bloque.
+  - Las notas del orador de cada diapositiva estan dentro del propio
+    archivo .pptx (vista Presentador / Notas) como guion casi literal.
+  - Matiz importante en el Bloque 3 y en el cierre: el torque RMS es
+    PRACTICAMENTE IGUAL en los tres controladores (~4.2-4.3 N.m). La
+    ventaja real del par calculado esta en el tiempo de estabilizacion
+    y el torque MAXIMO, no en el RMS. No decir "gana en RMS".
+
+  Preguntas aun pendientes de confirmar con el docente:
+    1. Uso de bloques MATLAB Function para M, C, G en Simulink.
+    2. Planeacion A* en MATLAB con envio de qd(t) a Simulink.
+    3. Si el PID no lineal debe incluir anti-windup obligatorio.
+====================================================================

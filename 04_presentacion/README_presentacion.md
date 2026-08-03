@@ -1,12 +1,14 @@
 # Presentación
 
-Preparar una PPT preliminar con 8 a 10 láminas:
+`PPT_Trabajo_Final_Robot_3GDL.pptx`: presentación final, 27 diapositivas
+en 4 bloques temáticos cronológicos (rótulos genéricos Expositor 1/2/3),
+con fórmulas, código MATLAB real (bloques de inercia, Christoffel y
+control por par calculado) y TODAS las gráficas de `02_resultados/`
+-incluyendo diapositivas de detalle/evidencia por bloque, pensadas para
+pasar rápido (~15 s cada una) sin dejar ningún resultado fuera-. Notas
+del orador incluidas en cada diapositiva, redactadas como guion de
+discurso casi literal.
 
-1. Problema y objetivo
-2. Base del trabajo (Presentación Ex. parcial)
-3. Modelo cinemático
-4. Modelo dinámico
-5. Controladores comparados
-6. Planeación con obstáculos
-7. Resultados esperados o preliminares
-8. Preguntas al docente y próximos pasos
+`Distribucion_Sustentacion.txt`: reparto de la sustentación por bloque
+(integrante, diapositivas, contenido, puntos clave, preguntas probables
+del docente) — ver ahí el detalle de quién expone qué.
